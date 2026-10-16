@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Job search{% endblock %}</title>
+{% block head %}{% endblock %}
+<style>
+  :root { --bg:#fbfaf7; --fg:#1f2328; --muted:#6b6f76; --line:#ddd9d0; --accent:#2f5d8a; --card:#fff;
+          --warn:#9a6700; --err:#b42318; --ok:#1a7f37; --f:#e7effa; --j:#f3eee1; --p:#eef6ea; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181c; --fg:#e6e6e6; --muted:#9aa0a6; --line:#33363c; --accent:#7fb0e0; --card:#1d2025;
+            --warn:#e3b341; --err:#f47067; --ok:#57ab5a; --f:#22324a; --j:#3a3424; --p:#253823; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display:flex; gap:1.2rem; align-items:center; padding:.7rem 1rem; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header b { margin-right:.5rem; } header a { color:var(--fg); text-decoration:none; } header a:hover { color:var(--accent); }
+  main { max-width:1500px; margin:0 auto; padding:1rem; }
+  .actions { display:flex; gap:.25rem; white-space:nowrap; }
+  .actions button { padding:.1rem .45rem; font-size:.85rem; }
+  /* two-step buttons instead of pop-up dialogs (browsers can silently block those) */
+  details.confirm { display:inline-block; }
+  details.confirm > summary { list-style:none; display:inline-block; font:inherit; padding:.25rem .7rem; border-radius:6px;
+                              border:1px solid var(--line); background:var(--card); cursor:pointer; }
+  details.confirm > summary::-webkit-details-marker { display:none; }
+  details.confirm[open] > summary { opacity:.6; }
+  .actions form.inline { display:contents; }
+  a { color:var(--accent); }
+  table { border-collapse:collapse; width:100%; } th, td { text-align:left; padding:.35rem .5rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-weight:600; color:var(--muted); font-size:.85rem; }
+  .muted { color:var(--muted); } .small { font-size:.85rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem; margin-bottom:1rem; }
+  .pill { display:inline-block; padding:0 .45rem; border-radius:999px; border:1px solid var(--line); font-size:.8rem; }
+  .flash { padding:.5rem .8rem; border-left:3px solid var(--accent); background:var(--card); margin-bottom:.6rem; }
+  pre, .pre { white-space:pre-wrap; font:13px/1.5 ui-monospace, monospace; margin:0; }
+  textarea { width:100%; min-height:12rem; font:13px/1.5 ui-monospace, monospace; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:.5rem; }
+  input, select { font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:.25rem .4rem; }
+  button { font:inherit; padding:.25rem .7rem; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  a.btn { display:inline-block; font:inherit; padding:.25rem .7rem; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); text-decoration:none; }
+  button.primary, a.btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  form.inline { display:inline; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:.5rem .8rem; }
+  .grid label { display:flex; flex-direction:column; font-size:.85rem; color:var(--muted); }
+  .tag { border-radius:4px; padding:0 2px; font-size:.8em; } .tag.f { background:var(--f); cursor:help; } .tag.j { background:var(--j); } .tag.p { background:var(--p); }
+  .err { color:var(--err); } .warn { color:var(--warn); } .ok { color:var(--ok); }
+  .scroll { overflow-x:auto; }
+  .toasts { position:fixed; top:.8rem; right:.8rem; z-index:10; display:flex; flex-direction:column; gap:.4rem; max-width:min(32rem, calc(100vw - 1.6rem)); }
+  .toast { margin:0; box-shadow:0 2px 10px rgba(0,0,0,.18); cursor:pointer; animation:toast-out .4s ease 6s forwards; }
+  .toast.err { border-left-color:var(--err); animation:none; }
+  @keyframes toast-out { to { opacity:0; visibility:hidden; } }
+</style>
+</head>
+<body>
+<header>
+  <b>Job search</b>
+  <a href="{{ url_for('inbox') }}">Inbox</a>
+  <a href="{{ url_for('efforts_page') }}">Efforts</a>
+  <a href="{{ url_for('sources_page') }}">Sources</a>
+  <a href="{{ url_for('companies_page') }}">Companies</a>
+  <a href="{{ url_for('recruiters') }}">Recruiters</a>
+  <a href="{{ url_for('report') }}">Monthly report</a>
+  <a href="{{ url_for('facts') }}">Facts</a>
+  <form method="post" action="{{ url_for('data_commit') }}" style="margin-left:auto;display:flex;gap:.5rem;align-items:center">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+    <span class="muted small" title="{{ data_dir }}{% if repo.changes %} - changed: {{ repo.changes|map('trim')|join(', ') }}{% endif %}">
+      data{% if repo.branch %} ({{ repo.branch }}){% endif %}:
+      {% if not repo.ok %}<span class="warn">not a git repo</span>
+      {% elif repo.changes %}{{ repo.changes|length }} change{{ "s" if repo.changes|length != 1 }}{% if repo.ahead %}, {{ repo.ahead }} unpushed{% endif %}
+      {% elif repo.ahead %}{{ repo.ahead }} commit{{ "s" if repo.ahead != 1 }} not pushed
+      {% else %}up to date{% endif %}</span>
+    {% if repo.ok and (repo.changes or repo.ahead) %}
+    {% if repo.changes %}<input name="message" value="{{ repo.message }}" size="28" title="commit message - edit if you like" aria-label="commit message" class="small">{% endif %}
+    {% if browser %}<button title="git add -A and commit, in this browser - export a bundle on the Data page to take it elsewhere">Commit data</button>
+    {% else %}<button title="git add -A, commit and push data/ ({{ data_dir }})">{{ "Commit & push data" if repo.changes else "Push data" }}</button>{% endif %}
+    {% endif %}
+  </form>
+  {% if browser %}<a href="/browser/data">Data</a><a href="/browser/lock" title="forget the key and lock this tab">Lock</a>{% endif %}
+</header>
+<main>
+  <div class="toasts">{% for m in get_flashed_messages() %}<div class="flash toast {{ 'err' if m.startswith('error') }}"
+    onclick="this.remove()" title="click to dismiss">{{ m }}</div>{% endfor %}</div>
+  {% block body %}{% endblock %}
+</main>
+<script>
+  // Buttons are plain forms, so every click reloads the page. Remember the scroll position when
+  // leaving and restore it when the same page comes back within a few seconds (a button click or the
+  // auto-refresh) - but not when you open the page fresh later.
+  (function () {
+    var key = "scroll:" + location.pathname;
+    try {
+      var saved = JSON.parse(sessionStorage.getItem(key) || "null");
+      sessionStorage.removeItem(key);
+      if (saved && Date.now() - saved.t < 15000) {
+        history.scrollRestoration = "manual";
+        window.scrollTo(0, saved.y);
+      }
+      window.addEventListener("beforeunload", function () {
+        sessionStorage.setItem(key, JSON.stringify({y: window.scrollY, t: Date.now()}));
+      });
+    } catch (e) { /* storage unavailable: fall back to normal browser behaviour */ }
+  })();
+</script>
+</body>
+</html>

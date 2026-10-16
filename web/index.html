@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job search</title>
+  <!-- Chrome applies this policy to the worker too: it loads Pyodide and isomorphic-git from jsdelivr (wasm),
+       packages from PyPI, and fetches job boards - hence https: for connections. No inline scripts anywhere. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; worker-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <!-- Where the jobsearch Python package is served from, relative to this page (the repo layout). -->
+  <meta name="py-base" content="../jobsearch/">
+  <link rel="stylesheet" href="style.css">
+  <style id="app-style"></style>
+  <script type="module" src="app.js"></script>
+</head>
+<body class="shell">
+  <header><b>Job search</b></header>
+  <main><p class="muted">Loading…</p></main>
+</body>
+</html>

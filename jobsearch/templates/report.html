@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Report {{ month }} · Job search{% endblock %}
+{% block body %}
+<form method="get" style="margin-bottom:.6rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+  Month <input name="month" value="{{ month }}" placeholder="YYYY-MM">
+  <select name="lang"><option value="it" {% if lang == "it" %}selected{% endif %}>Italiano (URC)</option>
+    <option value="de" {% if lang == "de" %}selected{% endif %}>Deutsch (RAV)</option></select>
+  <button>Show</button>
+  {% for m in months[:12] %}<a href="?month={{ m }}&lang={{ lang }}" class="small">{{ m }}</a>{% endfor %}
+</form>
+<div class="card">
+  <h3 style="margin-top:0">{{ L.title }} – {{ month_label }}</h3>
+  <p>{{ L.count }}: <b>{{ rows|length }}</b>
+     · <a href="?month={{ month }}&lang={{ lang }}&format=csv">CSV</a></p>
+  <p><b>Official form 716.007 i (PDF):</b>
+     <a class="btn primary" href="?month={{ month }}&format=pdf" target="_blank">Open</a>
+     <a class="btn" href="?month={{ month }}&format=pdf&download=1">Download</a><br>
+     <span class="muted small">the URC's own fillable form, filled in: {{ ((rows|length + 13) // 14) or 1 }} cop{{ "y" if (rows|length) <= 14 else "ies" }} of 14 rows,
+       dated today, signature line left for you. Still editable in a PDF viewer.
+       {% if not me.ahv %}<br><span class="warn">No AHV number - {% if browser %}add it on the <a href="/browser/data">Data</a> page{% else %}add <code>ahv:</code> to ~/.config/jobsearch/insured.yaml{% endif %}.</span>{% endif %}</span></p>
+  <div class="scroll">
+  <table>
+    <tr>{% for c in L.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+    {% for r, job_id in rows %}<tr>{% for c in r %}<td class="small">{% if loop.index0 == 3 and job_id %}<a href="{{ url_for('job', job_id=job_id) }}">{{ c }}</a>{% else %}{{ c|linkify }}{% endif %}</td>{% endfor %}</tr>{% else %}
+    <tr><td colspan="{{ L.columns|length }}" class="muted">{{ L.none }}</td></tr>{% endfor %}
+  </table>
+  </div>
+</div>
+{% endblock %}

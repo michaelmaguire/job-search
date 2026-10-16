@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Edit effort · Job search{% endblock %}
+{% block body %}
+<div class="card">
+  <h3 style="margin-top:0">Edit effort</h3>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid">
+      {% for f in FIELDS %}
+      <label>{{ f.replace("_", " ") }}
+        {% if f == "type" %}<select name="type">{% for t in TYPES %}<option {% if t == r.type %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+        {% elif f == "method" %}<select name="method"><option></option>{% for m in METHODS %}<option {% if m == r.method %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+        {% elif f == "result" %}<select name="result"><option></option>{% for x in RESULTS %}<option {% if x == r.result %}selected{% endif %}>{{ x }}</option>{% endfor %}</select>
+        {% elif f == "date" %}<input type="date" name="date" value="{{ r.date }}">
+        {% else %}<input name="{{ f }}" value="{{ r[f] }}">{% endif %}
+      </label>
+      {% endfor %}
+    </div>
+    <button class="primary" style="margin-top:.5rem">Save</button>
+    <details class="confirm"><summary>Delete</summary> <button name="delete" value="1" class="err">Yes, delete this row</button></details>
+    <a href="{{ url_for('efforts_page') }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

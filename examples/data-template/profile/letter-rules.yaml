@@ -1,0 +1,98 @@
+# Rules applied to every cover letter. Read by `jobsearch check` and by the
+# cover-letter skill. Edit freely.
+
+# Sender profiles. A draft picks one with `profile: <key>` in its front matter (default: ch).
+senders:
+  ch:
+    name: Your Name
+    email: you@example.com          # "{company}@yourdomain" gives a per-company alias
+    phone: "+41 00 000 00 00"
+    address_lines:
+      - 8000 Zürich, Switzerland
+    linkedin: https://www.linkedin.com/in/your-profile/
+    cv: raw/your-cv.pdf             # path inside the data repo; attached to application emails
+
+# Other addresses you write from that aren't sender emails above. A pasted email
+# thread counts a message as yours if it's from your sender name or any of these.
+my_emails: []           # e.g. [you@proton.me]
+
+max_words: 380          # body only; one page
+
+# Your own words, added verbatim just before the sign-off of every letter (one
+# paragraph per entry). Write them here yourself: banned_phrases don't apply to them,
+# because the list guards text that Claude drafts. An entry that says something about
+# you must name the fact that backs it (`fact:`); the checker counts that citation,
+# and warns if a letter leaves an entry out.
+standard_closing:
+  # Your own words, added verbatim before the sign-off of every letter. A line that says something
+  # about you must cite a fact:  - {text: "...", fact: SOME-FACT-ID}
+  - "I would welcome the opportunity to discuss the role with you."
+min_fact_citations: 3
+
+# Sentences in a letter that make any claim must be tagged:
+#   [F:FACT-ID]       claim about you, backed by profile/facts.yaml
+#   [J]               statement about the job or company, taken from posting.md
+#   [P]               your own preference/motivation, taken from the job's notes.md
+# Salutation, closing and signature lines are exempt, and so are standard_closing entries.
+
+# Phrases that signal inflation or filler. Checker fails on any of these
+# (case-insensitive, whole-phrase match). Add to this list whenever you spot one.
+banned_phrases:
+  - track record of
+  - self-reported
+  - world-class
+  - elite
+  - industry-leading
+  - cutting-edge
+  - best-in-class
+  - expert in
+  - deep expertise
+  - extensive expertise
+  - I excel
+  - excel at
+  - I embody
+  - embody
+  - passionate
+  - rockstar
+  - ninja
+  - guru
+  - thought leader
+  - visionary
+  - spearheaded
+  - championed
+  - revolutionized
+  - transformed
+  - mastered
+  - rapidly master
+  - seamlessly
+  - synergy
+  - leverage my
+  - leveraging my
+  - intuitive understanding
+  - perfect fit
+  - ideal candidate
+  - uniquely qualified
+  - directly reflects
+  - I am confident that
+  - unparalleled
+  - elegant, automated
+  - massive
+
+# Verbs that may only appear in a sentence whose cited fact contains the same
+# word stem (prevents "supported" becoming "led").
+guarded_verbs:
+  - led
+  - lead
+  - leading
+  - architected
+  - architecting
+  - designed
+  - founded
+  - managed
+  - invented
+  - inventor
+  - owned
+  - headed
+  - built
+  - created
+  - shipped

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Facts · Job search{% endblock %}
+{% block body %}
+<p class="muted">Read-only view of <code>profile/facts.yaml</code>. Letters may only claim what is here. {% if browser %}<a href="/browser/edit?path=profile/facts.yaml">Edit it</a>.{% else %}Edit the YAML file to change it.{% endif %}</p>
+<div class="scroll">
+<table>
+  <tr><th>ID</th><th>Statement</th><th>Status</th><th>Avoid / notes</th></tr>
+  {% for f in facts %}
+  <tr>
+    <td style="white-space:nowrap"><code>{{ f.id }}</code></td>
+    <td>{{ f.statement }}<div class="small muted">{{ (f.sources or [])|join(", ") }}</div></td>
+    <td>{% if f.status == "needs-confirmation" %}<span class="warn">needs confirmation</span>{% else %}<span class="ok">confirmed</span>{% endif %}</td>
+    <td class="small">{% if f.note %}<div class="warn">{{ f.note }}</div>{% endif %}
+      {% for a in f.avoid or [] %}<div>✗ {{ a }}</div>{% endfor %}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

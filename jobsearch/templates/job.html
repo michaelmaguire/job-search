@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}{{ j.company }} · Job search{% endblock %}
+{% block head %}{% if drafter.running and drafter.job == j.id %}<meta http-equiv="refresh" content="4">{% endif %}{% endblock %}
+{% block body %}
+<div class="card">
+  <h2 style="margin:0;font-size:1.7rem">{{ j.company }}</h2>
+  <div style="font-size:1.15rem;margin:.1rem 0 .4rem">{{ j.title }}</div>
+  <div class="small">{{ j.location }} · score {{ j.score }}{% if j.posted %} · posted {{ j.posted }}{% endif %} · found {{ j.fetched }}
+    {% if snapshots %}{% set snap = snapshots|sort|last %}· <a href="{{ url_for('job_file', job_id=j.id, name=snap) }}" target="_blank" title="PDF of the advert page saved as {{ snap }}">original advert</a>
+    {% else %}· <span class="muted" title="no PDF of the advert saved yet - use Save PDF of advert page under Files (details)">original advert (no PDF yet)</span>{% endif %}
+    {% if j.url %}· <a href="{{ j.url }}" target="_blank" rel="noopener" title="{{ j.url }}">URL</a>{% endif %}</div>
+  {% if via %}<div class="small" style="margin-top:.3rem">Via recruiter <a href="{{ url_for('recruiter', conv_id=via.id) }}"><b>{{ via.contact }}</b>{% if via.agency %} ({{ via.agency }}){% endif %}</a>
+    · {{ via.messages|length }} messages</div>{% endif %}
+  <div style="margin-top:.5rem">
+    <form class="inline" method="post" action="{{ url_for('set_status', job_id=j.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      Status <select name="status" onchange="this.form.submit()">
+        {% for s in STATUSES %}<option {% if s == j.status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </form>
+    <span class="muted small">· folder {{ j.id }}</span>
+  </div>
+  {% if j.summary_only %}<p class="warn" style="margin-bottom:0">Only a summary was fetched. Open the advert text below, paste the full advert and save - letters need it.</p>{% endif %}
+  <details id="advert" style="margin-top:.6rem" {% if j.summary_only %}open{% endif %}>
+    <summary><b>Advert text</b> <span class="muted small">- as saved when it was found</span></summary>
+    <div class="pre" style="max-height:32rem;overflow:auto;margin-top:.5rem">{{ j.body|linkify }}</div>
+    <details style="margin-top:.5rem" {% if j.summary_only %}open{% endif %}>
+      <summary class="small muted">edit / paste full text</summary>
+      <form method="post" action="{{ url_for('save', job_id=j.id, what='posting') }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <textarea name="text">{{ j.body }}</textarea><button>Save advert</button>
+      </form>
+    </details>
+  </details>
+</div>
+
+<div class="card" id="quick-files">
+  <h3 style="margin-top:0">Files</h3>
+  <table>
+    <tr><td style="width:9rem">Cover letter</td><td>
+      {% if letter_pdf %}<a href="{{ url_for('job_file', job_id=j.id, name=letter_pdf[0]) }}" target="_blank">PDF</a>
+        {% if letter_docx %}· <a href="{{ url_for('job_file', job_id=j.id, name=letter_docx[0]) }}">Word</a>{% endif %}
+        <span class="muted small">· {{ letter_pdf[0] }} · {{ letter_pdf[1].strftime("%Y-%m-%d %H:%M") }}</span>
+        {% if stale %}<span class="warn small">· draft changed since</span>{% endif %}
+      {% else %}<span class="muted">not rendered yet</span>{% endif %}</td></tr>
+    <tr><td>CV</td><td>
+      {% if cv and cv.exists() %}<a href="{{ url_for('job_cv', job_id=j.id) }}" target="_blank">PDF</a>
+        <span class="muted small">· {{ cv.name }}</span>
+      {% else %}<span class="warn">no CV set (letter-rules.yaml <code>cv:</code>)</span>{% endif %}</td></tr>
+  </table>
+</div>
+
+<div class="card" id="letter">
+  <h3 style="margin-top:0">Cover letter</h3>
+  {% set mine = drafter.job == j.id %}
+  {% set passed = check_txt and check_txt.strip().endswith('PASS') %}
+  <p class="small muted" style="margin-top:0">
+    {% if letter_pdf %}{{ letter_pdf[0] }} · rendered {{ letter_pdf[1].strftime("%Y-%m-%d %H:%M:%S") }}
+      · <a href="{{ url_for('job_file', job_id=j.id, name=letter_pdf[0]) }}" target="_blank">open PDF in a new tab</a>
+      {% if letter_docx %}· <a href="{{ url_for('job_file', job_id=j.id, name=letter_docx[0]) }}">Word</a>{% endif %}
+    {% elif draft %}Draft written, not rendered yet.{% else %}No draft yet.{% endif %}</p>
+  {% if stale %}<p class="warn small">The draft has changed since this PDF was rendered - use Check &amp; render to update it.</p>{% endif %}
+
+  {% if browser %}<p class="muted small">Drafting with Claude needs the local app; here you can edit the draft, check and render it.</p>
+  {% else %}
+  <form method="post" action="{{ url_for('run_claude', job_id=j.id) }}" style="margin-bottom:.6rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <textarea name="instructions" style="min-height:2.6rem" placeholder="Instructions for Claude (optional), e.g. &quot;stress the trading experience&quot;, &quot;write it in German&quot;, or for a revision &quot;shorten the second paragraph&quot;"></textarea>
+    <button class="primary" name="mode" value="fresh" {% if drafter.running %}disabled{% endif %}
+      {% if draft %}title="Writes a new draft; the current one is kept as letter.draft.prev.md"{% endif %}>Draft with Claude</button>
+    <button name="mode" value="revise" {% if drafter.running or not draft %}disabled{% endif %}>Revise with Claude</button>
+    <span class="muted small">Claude maps the advert's requirements to your facts, writes the draft and fixes it until Check passes. Nothing is rendered or sent.</span>
+  </form>
+  {% if drafter.running and mine %}
+    <div class="flash">Claude is working since {{ drafter.started.strftime("%H:%M:%S") }}… (this page refreshes; usually 1-3 minutes)
+      <ul class="small" style="margin:.3rem 0 0">{% for step in drafter.progress[-8:] %}<li>{{ step }}</li>{% endfor %}</ul></div>
+  {% elif drafter.running %}
+    <p class="muted small">Claude is busy drafting for <a href="{{ url_for('job', job_id=drafter.job) }}">{{ drafter.job }}</a>.</p>
+  {% elif mine and drafter.finished %}
+    <div class="flash {{ 'err' if drafter.error }}">
+      <b>Claude {{ "failed" if drafter.error else "finished" }}</b> at {{ drafter.finished.strftime("%H:%M:%S") }}{% if drafter.cost %} · ${{ "%.2f"|format(drafter.cost) }}{% endif %}
+      · <a href="{{ url_for('job_file', job_id=j.id, name='letter.claude.log') }}">log</a>
+      <div class="pre small" style="margin-top:.3rem">{{ drafter.error or drafter.summary }}</div></div>
+  {% elif last_run %}
+    <details style="margin-bottom:.4rem">
+      <summary class="small"><b>Last Claude run</b> <span class="muted">{{ last_run.at }}</span>
+        · <a href="{{ url_for('job_file', job_id=j.id, name='letter.claude.log') }}">log</a></summary>
+      <div class="pre small" style="margin-top:.3rem">{{ last_run.summary }}</div>
+    </details>
+  {% endif %}
+  {% endif %}
+
+  <details style="margin:.2rem 0 .7rem" {% if check_txt and not passed %}open{% endif %}>
+    <summary><b>Edit draft</b> <span class="muted small">- {% if draft %}the text with its fact tags ([F:ID] = a fact, [J] = from the advert, [P] = from your notes; removed in the PDF){% else %}write one yourself, ending each claim with a fact tag{% endif %}</span></summary>
+    {% if "letter.audit.md" in file_names %}<p class="small muted" style="margin:.4rem 0">Which fact backs each sentence:
+      <a href="{{ url_for('job_file', job_id=j.id, name='letter.audit.md') }}" target="_blank">claim audit</a> ·
+      <a href="{{ url_for('facts') }}" target="_blank">all facts</a></p>{% endif %}
+    <form method="post" action="{{ url_for('save', job_id=j.id, what='draft') }}" style="margin-top:.4rem">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <textarea name="text" style="min-height:24rem">{{ draft }}</textarea><button>Save draft</button>
+    </form>
+  </details>
+  {% if draft %}
+  <div style="margin:.4rem 0">
+    {% if passed %}<span class="ok small">Check: {{ check_txt.strip().splitlines()[-1] }} · {{ check_txt.strip().splitlines()[0].split(":")[0] }}</span>
+    {% elif check_txt %}<pre class="err" style="margin:.3rem 0">{{ check_txt }}</pre>
+    {% else %}<span class="muted small">Not checked yet.</span>{% endif %}
+  </div>
+  <form class="inline" method="post" action="{{ url_for('run_check', job_id=j.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Check</button></form>
+  <form class="inline" method="post" action="{{ url_for('run_render', job_id=j.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">Check &amp; render PDF/DOCX</button></form>
+  {% if check_txt and not passed %}
+  <form class="inline" method="post" action="{{ url_for('run_render', job_id=j.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="force" value="1">
+    <details class="confirm"><summary class="err">Acknowledge errors and render anyway</summary>
+      <button class="err" title="the errors you accept are recorded in letter.override.txt">Yes, render despite the errors above</button></details>
+  </form>
+  {% endif %}
+  {% endif %}
+
+  {% if letter_pdf %}
+    <iframe src="{{ url_for('job_file', job_id=j.id, name=letter_pdf[0]) }}#view=FitH" style="width:100%;height:56rem;margin-top:.7rem;border:1px solid var(--line);border-radius:6px;background:#fff"></iframe>
+  {% endif %}
+
+  {% if analysis %}
+  <details {% if mine and drafter.finished %}open{% endif %} style="margin-top:.6rem">
+    <summary><b>Claude's analysis</b> <span class="muted small">- requirements, the facts that meet them, and gaps</span></summary>
+    <div class="pre small" style="margin-top:.4rem">{{ analysis }}</div>
+  </details>
+  {% endif %}
+</div>
+
+<div class="card" id="email">
+  <h3 style="margin-top:0">Application email</h3>
+  <p class="small muted" style="margin-top:0">For companies that take applications by email. If the advert uses an online form, upload the letter PDF there instead.
+    Saving to Gmail only creates a draft - you send it from Gmail yourself.</p>
+  <form method="post" action="{{ url_for('save_email', job_id=j.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid" style="grid-template-columns:1fr">
+      <label>To<input name="to" value="{{ mail.to }}" placeholder="the company's application address (can be left empty and filled in Gmail)"></label>
+      <label>Subject<input name="subject" value="{{ mail.subject }}"></label>
+      <label>Body<textarea name="body" style="min-height:11rem">{{ mail.body }}</textarea></label>
+    </div>
+    <p class="small" style="margin:.4rem 0">Attachments:
+      {% for a in attached %}<span class="pill">{{ a }}</span> {% else %}<span class="muted">none</span>{% endfor %}
+      {% for p in problems %}<br><span class="warn">{{ p }}</span>{% endfor %}</p>
+    {% set gmail_ok = gmail_status[0] %}
+    <button class="primary" name="action" value="gmail" {% if problems or not gmail_ok %}disabled{% endif %}>Save draft to Gmail</button>
+    <button name="action" value="local">Save here only</button>
+    {% if browser %}<a class="btn" target="_blank" rel="noopener noreferrer" title="opens a new Gmail message with these fields - attach the files above yourself"
+       href="https://mail.google.com/mail/?view=cm&fs=1&to={{ mail.to|urlencode }}&su={{ mail.subject|urlencode }}&body={{ mail.body|urlencode }}">Write in Gmail</a>{% endif %}
+    <span class="small">
+      {% if not gmail_ok %}<span class="warn">{{ gmail_status[1] }}</span> <span class="muted">(then reload this page)</span>
+      {% elif mail.gmail_saved %}<span class="muted">In Gmail Drafts since {{ mail.gmail_saved }} - saving again updates that draft · {{ gmail_status[1] }}</span>
+      {% else %}<span class="muted">Not in Gmail yet · {{ gmail_status[1] }}</span>{% endif %}</span>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Notes</h3>
+  <p class="small muted">Your own words: why this role interests you, preferences, contacts. Letter sentences tagged [P] may only use what is written here.</p>
+  <form method="post" action="{{ url_for('save', job_id=j.id, what='notes') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <textarea name="text" style="min-height:7rem">{{ notes }}</textarea><button>Save notes</button>
+  </form>
+</div>
+
+<div class="card" id="emails">
+  <h3 style="margin-top:0">Emails ({{ emails|length }})</h3>
+  {% for m in emails %}
+  <details style="margin-bottom:.3rem">
+    <summary><span class="pill">{{ m.kind }}</span> {{ m.received }}{% if m["from"] %} · <span class="small">{{ m["from"] }}</span>{% endif %}
+      <span class="muted small">· {{ m.file }}</span></summary>
+    <div class="pre small card" style="margin-top:.3rem">{{ m.text }}</div>
+    <form method="post" action="{{ url_for('change_email', job_id=j.id, name=m.file) }}"
+          style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <select name="kind">{% for k, label in KINDS.items() %}<option value="{{ k }}" {% if k == m.kind %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <input name="reason" placeholder="rejection reason (optional)" size="26">
+      <button name="action" value="reclassify" title="redo its effects: status, and a result row in Efforts for a rejection">Change type</button>
+      <details class="confirm"><summary>Remove</summary>
+        <button name="action" value="remove" class="err" title="also removes the rejection result it logged and resets the status it set">Yes, remove this email</button></details>
+    </form>
+  </details>
+  {% endfor %}
+  <details {% if not emails and j.status in ("applied",) %}open{% endif %}>
+    <summary class="small"><b>Paste an email for this job</b> <span class="muted">- acknowledgement, rejection, …</span></summary>
+    <form method="post" action="{{ url_for('paste_email') }}" style="margin-top:.4rem">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="job_id" value="{{ j.id }}">
+      <input type="hidden" name="next" value="{{ url_for('job', job_id=j.id) }}">
+      <textarea name="text" style="min-height:8rem" required></textarea>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem">
+        <select name="kind">{% for k, label in KINDS.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select>
+        <input name="reason" placeholder="rejection reason (optional)" size="30">
+        <button>Save email</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Efforts for this job</h3>
+  {% if history %}
+  <table>
+    <tr><th>Date</th><th>Type</th><th>Method</th><th>Result</th><th>Notes</th></tr>
+    {% for r in history %}<tr><td>{{ r.date }}</td><td>{{ r.type }}</td><td>{{ r.method }}</td><td>{{ r.result }} {{ r.rejection_reason }}</td><td>{{ r.notes }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+  <form method="post" action="{{ url_for('efforts_page') }}" style="margin-top:.6rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="next" value="{{ url_for('job', job_id=j.id) }}">
+    <input type="hidden" name="job_id" value="{{ j.id }}">
+    <div class="grid">
+      <label>Date<input type="date" name="date" value="{{ today }}"></label>
+      <label>Type<select name="type">{% for t in TYPES %}<option>{{ t }}</option>{% endfor %}</select></label>
+      <label>Company<input name="company" value="{{ j.company }}"></label>
+      <label>Job title<input name="job_title" value="{{ j.title }}"></label>
+      <label>Workload<input name="workload" placeholder="100% / 80-100%"></label>
+      <label>Method<select name="method"><option></option>{% for m in METHODS %}<option>{{ m }}</option>{% endfor %}</select></label>
+      <label>Result<select name="result"><option></option>{% for r in RESULTS %}<option>{{ r }}</option>{% endfor %}</select></label>
+      <label>Rejection reason<input name="rejection_reason"></label>
+      <label>Contact person<input name="contact_person"></label>
+      <label>Contact email<input name="contact_email"></label>
+      <label>Link<input name="link" value="{{ j.url }}"></label>
+      <label>Interview with<input name="interview_with"></label>
+      <label>Interviewer role<input name="interviewer_role"></label>
+      <label>Interview mode<input name="interview_mode" placeholder="online / phone / in person"></label>
+      <label>Documents<input name="documents" placeholder="letter PDF; CV version"></label>
+      <label>Notes<input name="notes"></label>
+    </div>
+    <button class="primary" style="margin-top:.5rem">Log effort</button>
+  </form>
+</div>
+<div class="card">
+  <h3 style="margin-top:0" id="files">Files (details)</h3>
+  {% if not browser %}
+  <form method="post" action="{{ url_for('take_snapshot', job_id=j.id) }}" style="margin-bottom:.5rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button {% if not j.url %}disabled title="no advert URL"{% endif %}>Save PDF of advert page</button>
+    <span class="muted small">{% if snapshots %}latest: {{ snapshots|sort|last }}{% else %}none saved yet{% endif %}
+      - proof of the advert for the RAV; saved automatically when you shortlist, draft or apply</span>
+  </form>
+  {% else %}<p class="muted small">Saving a PDF of the advert page needs the local app (it runs Chrome).</p>{% endif %}
+  <table>
+  {% for name, mtime in files %}
+    <tr><td class="small muted" style="white-space:nowrap;width:1%">{{ mtime.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+        <td><a href="{{ url_for('job_file', job_id=j.id, name=name) }}">{{ name }}</a><br>
+            <code class="small muted" style="word-break:break-all">{{ folder / name }}</code></td></tr>
+  {% endfor %}
+  {% if cv %}
+    <tr><td class="small muted" style="white-space:nowrap;width:1%">{% if cv.exists() %}{{ cv.stat().st_mtime|filetime }}{% endif %}</td>
+        <td><a href="{{ url_for('job_cv', job_id=j.id) }}">{{ cv.name }}</a> <span class="muted small">(CV attached to applications - shared, not in this folder)</span><br>
+            <code class="small muted" style="word-break:break-all">{{ cv }}</code></td></tr>
+  {% endif %}
+  </table>
+  <p class="muted small" style="margin:.4rem 0 0">Newest first - times are when each file was last written.</p>
+  <p class="small muted">To keep emails or confirmations, save them into the folder above.</p>
+</div>
+
+{% endblock %}

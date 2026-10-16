@@ -1,0 +1,22 @@
+/* The unlock and set-up screens (body.shell) - the same look as the app's pages, whose own styles come
+   with each page (templates/base.html) - and the status line shown on every page. */
+.shell { --bg:#fbfaf7; --fg:#1f2328; --muted:#6b6f76; --line:#ddd9d0; --accent:#2f5d8a; --card:#fff; --err:#b42318; --ok:#1a7f37; }
+@media (prefers-color-scheme: dark) {
+  .shell { --bg:#16181c; --fg:#e6e6e6; --muted:#9aa0a6; --line:#33363c; --accent:#7fb0e0; --card:#1d2025; --err:#f47067; --ok:#57ab5a; }
+}
+body.shell { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.shell * { box-sizing:border-box; }
+.shell header { display:flex; gap:1.2rem; align-items:center; padding:.7rem 1rem; border-bottom:1px solid var(--line); }
+.shell main { max-width:34rem; margin:2rem auto; padding:0 1rem; }
+.shell footer { max-width:34rem; margin:0 auto; padding:0 1rem 2rem; }
+.shell .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem 1.2rem; }
+.shell h2 { margin-top:0; }
+.shell label { display:flex; flex-direction:column; gap:.2rem; margin:.7rem 0; font-size:.9rem; color:var(--muted); }
+.shell input { font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:.35rem .5rem; }
+.shell button { font:inherit; padding:.35rem .9rem; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; margin-top:.4rem; }
+.shell pre { white-space:pre-wrap; font:13px/1.5 ui-monospace, monospace; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.5rem; }
+.shell .muted { color:var(--muted); } .shell .small { font-size:.85rem; } .shell .err { color:var(--err); }
+
+#js-status { position:fixed; left:.8rem; bottom:.8rem; z-index:20; padding:.3rem .7rem; border-radius:6px; font:13px/1.4 system-ui, sans-serif;
+             background:#1f2328; color:#fff; box-shadow:0 2px 10px rgba(0,0,0,.2); max-width:calc(100vw - 1.6rem); }
+#js-status.ok { background:#1a7f37; } #js-status.err { background:#b42318; } #js-status.busy { background:#2f5d8a; }

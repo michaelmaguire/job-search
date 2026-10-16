@@ -1,0 +1,38 @@
+[project]
+name = "jobsearch"
+version = "0.1.0"
+description = "Personal job search: fetch adverts, fact-checked cover letters, RAV-style effort records"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "pyyaml",
+    "beautifulsoup4",
+    "flask",
+    "google-api-python-client",
+    "google-auth-oauthlib",
+    "pypdf",
+]
+
+[project.scripts]
+jobsearch = "jobsearch.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["jobsearch*"]
+
+[tool.setuptools.package-data]
+jobsearch = ["templates/*.html", "forms/*.pdf"]
+
+[project.optional-dependencies]
+dev = ["ruff", "fpdf2==2.8.1"]   # fpdf2: the browser version's letter PDFs (web/letterdoc.py), for its tests
+
+[tool.ruff]
+target-version = "py310"   # matches requires-python: flags syntax newer than 3.10 (e.g. backslashes in f-strings)
+line-length = 130
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I"]   # pyflakes, pycodestyle, import sorting
+ignore = ["E501"]               # long lines are fine here (URLs, regexes, test data)

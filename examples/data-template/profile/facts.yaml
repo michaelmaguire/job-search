@@ -1,0 +1,14 @@
+# Evidence base for cover letters. A letter may only claim what is written here; every claim is
+# tagged [F:ID] and `jobsearch check` verifies numbers and verbs against the cited entry.
+# Keep each statement in the plainest wording your documents (CVs, references in raw/) support.
+#
+#   statement  canonical wording        sources   where it comes from (files in raw/)
+#   numbers    figures a letter may use avoid     stronger phrasings that are NOT supported
+#   status     confirmed | needs-confirmation (the checker warns)
+facts:
+  - id: EXAMPLE-ROLE
+    statement: Senior Software Engineer at Example AG, Zürich (2020-2025) - maintained the C++ pricing service.
+    sources: [raw/your-cv.pdf]
+    numbers: ["2020", "2025"]
+    status: confirmed
+    avoid: ["led / designed the pricing service (the CV says maintained)"]

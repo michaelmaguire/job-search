@@ -1,0 +1,9 @@
+# Companies whose own job boards are polled (`polled`) or checked by hand (`manual`).
+# board formats: greenhouse:<name>  lever:<name>  ashby:<name>  smartrecruiters:<Name>  recruitee:<name>
+#                personio:<name>  workday:<tenant>.wd<N>/<site>  successfactors:<career site host>
+# Easiest: add them on the Sources tab of the web app, which also has a Test button.
+polled:
+  - {name: Proton, board: "greenhouse:proton"}
+
+manual:
+  - {name: Example Bank, careers: "https://www.example.com/careers"}

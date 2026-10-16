@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Recruiters · Job search{% endblock %}
+{% block body %}
+<details class="card" {% if not convs %}open{% endif %}>
+  <summary><b>Paste a conversation</b> <span class="muted small">- an email thread with a recruiter, as copied from your mail program</span></summary>
+  <form method="post" action="{{ url_for('recruiter_paste') }}" style="margin-top:.5rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <textarea name="text" style="min-height:14rem" placeholder="Paste the whole thread, including the &quot;On … wrote:&quot; lines" required></textarea>
+    <div style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem;flex-wrap:wrap">
+      <input name="agency" placeholder="agency (optional - taken from the email domain)">
+      <button class="primary">Save conversation</button>
+      <span class="muted small">Pasting a longer version of a thread you already saved adds only the new messages.</span>
+    </div>
+  </form>
+</details>
+
+<h3>Conversations ({{ convs|length }})</h3>
+<div class="scroll">
+<table>
+  <tr><th>Recruiter</th><th>Agency</th><th>Messages</th><th>First</th><th>Last</th><th>Jobs</th><th>Status</th></tr>
+  {% for c in convs %}
+  <tr>
+    <td><a href="{{ url_for('recruiter', conv_id=c.id) }}">{{ c.contact or c.email }}</a><br><span class="muted small">{{ c.email }}</span></td>
+    <td>{{ c.agency }}</td>
+    <td>{{ c.messages|length }}</td>
+    <td class="small">{{ c.first }}</td>
+    <td class="small">{{ c.last }}</td>
+    <td class="small">{% for jid in c.jobs %}{% set j = jobs_by_id.get(jid) %}
+      {% if j %}<a href="{{ url_for('job', job_id=jid) }}">{{ j.company }} - {{ j.title }}</a> <span class="pill">{{ j.status }}</span>{% else %}{{ jid }}{% endif %}<br>
+    {% else %}<span class="muted">none yet</span>{% endfor %}</td>
+    <td><span class="pill">{{ c.status }}</span></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="muted">No conversations yet - paste one above.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

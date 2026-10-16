@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Inbox · Job search{% endblock %}
+{% block head %}{% if fetcher.running %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block body %}
+<form method="post" action="{{ url_for('start_fetch') }}" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button class="primary" {% if fetcher.running %}disabled{% endif %}>Fetch new adverts</button>
+  <span class="muted small">
+    {% if fetcher.running %}Fetching since {{ fetcher.started.strftime("%H:%M:%S") }}… (page refreshes until done)
+    {% else %}
+      {% set last = fetcher.last_fetch() %}
+      Last fetch: {{ last.strftime("%Y-%m-%d %H:%M") if last else "never" }}{% if fetcher.result %} · {{ fetcher.result }}{% endif %}
+    {% endif %}
+  </span>
+</form>
+<details id="add" style="margin-bottom:.8rem">
+  <summary><b>Add an advert</b> <span class="muted small">- found on LinkedIn, jobs.ch, a company site or in an email</span></summary>
+  <form method="post" action="{{ url_for('add_advert') }}" class="card" style="margin-top:.5rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid">
+      <label>Link to the advert<input name="url" type="url" placeholder="https://www.linkedin.com/jobs/view/…"></label>
+      <label>Company *<input name="company" required></label>
+      <label>Job title *<input name="title" required></label>
+      <label>Location<input name="location" placeholder="e.g. Zürich (hybrid)"></label>
+      <label>Posted on (if shown)<input name="posted" type="date"></label>
+      <label>Status<select name="status"><option value="shortlisted">shortlisted (saves a PDF of the page)</option><option value="new">new</option></select></label>
+    </div>
+    <label class="small muted" style="display:block;margin-top:.5rem">Advert text - select all on the advert page, copy and paste here (needed for a letter; can be added later)
+      <textarea name="text" style="min-height:12rem"></textarea></label>
+    <button class="primary" style="margin-top:.4rem">Add advert</button>
+    <span class="muted small">The source is taken from the link (linkedin, jobs.ch, …). Tracking parts of LinkedIn links are removed.
+      If the advert is already saved, nothing is duplicated - a summary-only copy gets your full text.</span>
+  </form>
+</details>
+
+<form method="get" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
+  <select name="status">
+    {% for s in ["new,shortlisted,drafting", "new", "shortlisted", "drafting", "applied,acknowledged", "applied", "acknowledged", "interviewing", "offer", "rejected", "skipped", "closed", "all"] %}
+      <option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+  <input name="q" value="{{ q }}" placeholder="company, title, location, source">
+  {% if show_blocked %}<input type="hidden" name="blocked" value="1">{% endif %}
+  <button>Filter</button>
+  <span class="muted small" style="align-self:center">
+    {% for s, n in counts|dictsort %}{{ s }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}
+    {% if show_blocked %} · <a href="{{ url_for('inbox', status=status, q=q) }}">hide blocked</a>
+    {% elif hidden %} · <a href="{{ url_for('inbox', status=status, q=q, blocked=1) }}" title="adverts from blocked sources or companies, below your minimum salary, or with an office outside your commute area">{{ hidden }} hidden (blocked, low salary or outside commute area)</a>{% endif %}
+  </span>
+</form>
+<div class="scroll">
+<table>
+  {% set any_salary = rows|selectattr("salary")|list %}
+  <tr><th></th><th>Score</th><th>Company</th><th style="min-width:15rem">Title</th><th>Location</th><th>Source</th>{% if any_salary %}<th>Salary</th>{% endif %}<th title="date the advert was posted, according to the board">Posted</th><th title="date we first fetched or added it">Found</th><th>Status</th></tr>
+  {% for j in rows %}
+  <tr>
+    <td><div class="actions">
+      {% for s in ["shortlisted", "skipped"] if s != j.status %}
+      <form class="inline" method="post" action="{{ url_for('set_status', job_id=j.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ s }}">
+        <input type="hidden" name="next" value="{{ request.full_path }}">
+        <button>{{ "Shortlist" if s == "shortlisted" else "Skip" }}</button>
+      </form>
+      {% endfor %}
+      {% if not (j.blocked or "").startswith("company") %}
+      <form class="inline" method="post" action="{{ url_for('company_block') }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ j.company }}">
+        <input type="hidden" name="reason"><input type="hidden" name="next" value="{{ request.full_path }}">
+        <button title="Hide every advert from {{ j.company }}, from any source (undo on the Companies tab)">Block</button>
+      </form>
+      {% endif %}
+    </div></td>
+    <td>{{ j.score }}</td>
+    <td>{{ j.company }}</td>
+    <td><a href="{{ url_for('job', job_id=j.id) }}">{{ j.title }}</a>{% if j.summary_only %} <span class="pill" title="Only a summary was fetched - paste the full advert on the job page">summary</span>{% endif %}</td>
+    <td class="small">{{ j.location }}</td>
+    <td class="small" title="{{ j.source or 'unknown' }}">{% set src = (j.source or "").partition(":")[0] or "unknown" %}{% if j.url %}<a href="{{ j.url }}">{{ src }}</a>{% else %}{{ src }}{% endif %}</td>
+    {% if any_salary %}<td class="small" style="white-space:nowrap">{{ (j.salary or "").replace("CHF ", "") }}</td>{% endif %}
+    <td class="small" style="white-space:nowrap">{{ j.posted or "" }}</td>
+    <td class="small" style="white-space:nowrap">{{ j.fetched or "" }}</td>
+    <td><span class="pill">{{ j.status }}</span>{% if j.blocked %} <span class="pill err" title="blocked">{{ j.blocked }}</span>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="10" class="muted">Nothing here. Fetch new adverts or change the filter.</td></tr>
+  {% endfor %}
+</table>
+</div>
+<script>
+  // The "Save this job" browser extension opens this page as /#add-advert=<base64url JSON> with the
+  // advert you were viewing. Fill the Add-an-advert form with it; you review it and click Add advert.
+  // The fragment never reaches the server. Advert text is untrusted: it only ever goes into field values.
+  (function () {
+    var m = location.hash.match(/^#add-advert=([A-Za-z0-9_-]+)$/);
+    if (!m) return;
+    history.replaceState(null, "", location.pathname + location.search + "#add");
+    var advert;
+    try {
+      var b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
+      var bytes = Uint8Array.from(atob(b64 + "===".slice((b64.length + 3) % 4)), function (c) { return c.charCodeAt(0); });
+      advert = JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) { return; }
+    var box = document.getElementById("add"), form = box.querySelector("form");
+    ["url", "company", "title", "location", "posted", "text"].forEach(function (k) {
+      if (typeof advert[k] === "string" && form.elements[k]) form.elements[k].value = advert[k].slice(0, 500000);
+    });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.elements.posted.value)) form.elements.posted.value = "";
+    box.open = true;
+    box.scrollIntoView();
+    var missing = ["company", "title"].filter(function (k) { return !form.elements[k].value; })[0];
+    (missing ? form.elements[missing] : form.querySelector("button.primary")).focus();
+  })();
+</script>
+{% endblock %}

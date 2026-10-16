@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ c.contact or c.email }} · Recruiters · Job search{% endblock %}
+{% block body %}
+<div class="card">
+  <h2 style="margin:0;font-size:1.6rem">{{ c.contact or c.email }}{% if c.agency %} <span class="muted" style="font-weight:normal">· {{ c.agency }}</span>{% endif %}</h2>
+  <div class="small" style="margin:.2rem 0 .5rem">{{ c.email }}{% if c.phone %} · {{ c.phone }}{% endif %} · {{ c.messages|length }} messages
+    · <span class="pill">{{ c.status }}</span> · <a href="{{ url_for('recruiters') }}">all recruiters</a></div>
+  <details>
+    <summary class="small muted">edit contact details / notes</summary>
+    <form method="post" action="{{ url_for('recruiter_edit', conv_id=c.id) }}" style="margin-top:.4rem">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="grid">
+        <label>Recruiter<input name="contact" value="{{ c.contact }}"></label>
+        <label>Email<input name="email" value="{{ c.email }}"></label>
+        <label>Agency<input name="agency" value="{{ c.agency }}"></label>
+        <label>Phone<input name="phone" value="{{ c.phone }}"></label>
+        <label>Status<select name="status">{% for s in ["active", "waiting", "closed"] %}<option {% if s == c.status %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      </div>
+      <label class="small muted" style="display:block;margin-top:.4rem">Notes<textarea name="notes" style="min-height:4rem">{{ c.notes }}</textarea></label>
+      <button>Save</button>
+    </form>
+  </details>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Jobs from this conversation ({{ c.jobs|length }})</h3>
+  {% if c.jobs %}
+  <table>
+    {% for jid in c.jobs %}{% set j = by_id.get(jid) %}
+    <tr><td>{% if j %}<a href="{{ url_for('job', job_id=jid) }}"><b>{{ j.company }}</b> - {{ j.title }}</a>{% else %}{{ jid }}{% endif %}</td>
+        <td>{% if j %}<span class="pill">{{ j.status }}</span>{% endif %}</td>
+        <td class="small muted">{% if j %}{{ j.location }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="small muted">When you set one of these to <b>applied</b>, its application is logged as "&lt;company&gt; via {{ c.agency or c.contact }}" with {{ c.contact }} as the contact.</p>
+  {% endif %}
+
+  {% set links = c.links|reject("search", "linkedin.com/in/")|list %}
+  {% if links %}
+  <h4 style="margin:.8rem 0 .3rem">Links in the conversation</h4>
+  {% for url in links %}{% set existing = known_urls.get(clean_url(url)) %}
+  <form method="post" action="{{ url_for('recruiter_add_job', conv_id=c.id) }}" class="card" style="padding:.6rem;margin-bottom:.5rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="url" value="{{ url }}">
+    <div class="small" style="word-break:break-all"><a href="{{ url }}" target="_blank">{{ url }}</a></div>
+    {% if existing and existing in c.jobs %}<span class="ok small">saved and linked</span>
+    {% else %}
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem">
+      <input name="company" placeholder="company *" required> <input name="title" placeholder="job title *" required>
+      <input name="location" placeholder="location"> <button>Add as advert from {{ c.contact or "this recruiter" }}</button>
+    </div>
+    {% if existing %}<span class="muted small">Already saved as <a href="{{ url_for('job', job_id=existing) }}">{{ existing }}</a> - adding links it here instead of duplicating.</span>{% endif %}
+    {% endif %}
+  </form>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post" action="{{ url_for('recruiter_link', conv_id=c.id) }}" style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <span class="small muted">Link a job that's already saved:</span>
+    <input name="job_id" placeholder="job folder, e.g. 2026-10-15-acme-engineer" size="40"> <button>Link</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Efforts</h3>
+  {% for r in contacts %}<div class="small">{{ r.date }} · recruiter contact · {{ r.method }} {% if r.notes %}· {{ r.notes }}{% endif %}</div>{% endfor %}
+  <form method="post" action="{{ url_for('recruiter_log_contact', conv_id=c.id) }}" style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-top:.4rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="date" name="date" value="{{ (c.messages|selectattr('date')|map(attribute='date')|first) or today }}">
+    <select name="method">{% for m in METHODS %}<option {% if m == "electronic" %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+    <input name="notes" placeholder="notes (optional)" size="30">
+    <button>Log recruiter contact</button>
+    <span class="muted small">Adds a "recruiter-contact" row to Efforts with {{ c.contact }} ({{ c.agency }}) as the contact. Applications are logged per job when you set it to applied.</span>
+  </form>
+</div>
+
+<h3>Messages</h3>
+{% for m in c.messages %}
+<div class="card" style="{% if m.me %}margin-left:3rem;border-left:3px solid var(--accent){% elif m.me is none %}border-style:dashed{% else %}margin-right:3rem{% endif %}">
+  <div class="small muted" style="margin-bottom:.3rem">
+    <b>{{ "You" if m.me else (m.name or m.email or "unknown sender") }}</b>{% if m.email and not m.me %} &lt;{{ m.email }}&gt;{% endif %}
+    · {{ m.date or "date not in the paste" }} {{ m.time }}</div>
+  <div class="pre">{{ m.body|linkify }}</div>
+</div>
+{% endfor %}
+
+<details style="margin-top:1rem">
+  <summary class="small muted">original pastes, kept word for word ({{ c.pastes|length }})</summary>
+  {% for at, text in c.pastes %}<p class="small muted">pasted {{ at }}</p><div class="pre small card">{{ text }}</div>{% endfor %}
+</details>
+{% endblock %}

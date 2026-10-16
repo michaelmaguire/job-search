@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Data · Job search{% endblock %}
+{% block body %}
+<div class="card">
+  <h3 style="margin-top:0">Git{% if repo.branch %} <span class="muted small">· branch {{ repo.branch }}</span>{% endif %}</h3>
+  {% if repo.changes %}
+  <p>{{ repo.changes|length }} uncommitted change{{ "s" if repo.changes|length != 1 }}:</p>
+  <ul class="small">{% for c in repo.changes %}<li><code>{{ c }}</code></li>{% endfor %}</ul>
+  <form method="post" action="{{ url_for('data_commit') }}" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ url_for('browser_data') }}">
+    <input name="message" value="{{ repo.message }}" size="50" aria-label="commit message">
+    <button class="primary" {% if not author.email %}disabled title="set your name and email below first"{% endif %}>Commit</button>
+  </form>
+  {% else %}<p class="muted">Everything is committed.</p>{% endif %}
+  <h4>Recent commits</h4>
+  <table>{% for c in info.log %}<tr><td class="small"><code>{{ c.oid[:7] }}</code></td><td>{{ c.message }}</td>
+    <td class="small muted" style="white-space:nowrap">{{ c.author }} · {{ c.date }}</td></tr>
+  {% else %}<tr><td class="muted">none</td></tr>{% endfor %}</table>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Take your data elsewhere</h3>
+  <p>A git bundle of everything committed: <code>git clone jobsearch.bundle</code> makes a normal repository of it,
+    or in your existing clone <code>git pull ~/Downloads/jobsearch.bundle {{ repo.branch or "main" }}</code>, then push as usual.</p>
+  {% if repo.changes %}<p class="warn small">Uncommitted changes aren't in the bundle - commit them first.</p>{% endif %}
+  <a class="btn primary" href="/browser/export">Export git bundle</a>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:0 1rem">
+<div class="card">
+  <h3 style="margin-top:0">You, as a commit author</h3>
+  <form method="post" action="{{ url_for('browser_author') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid"><label>Name<input name="name" value="{{ author.name }}" required></label>
+      <label>Email<input name="email" type="email" value="{{ author.email }}" required></label></div>
+    <button style="margin-top:.5rem">Save</button> <span class="muted small">as in your other commits</span>
+  </form>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">You, on the URC/RAV form</h3>
+  <form method="post" action="{{ url_for('browser_insured') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid"><label>Name<input name="name" value="{{ me.name }}"></label>
+      <label>AHV number<input name="ahv" value="{{ me.ahv }}" placeholder="756.xxxx.xxxx.xx"></label></div>
+    <button style="margin-top:.5rem">Save</button> <span class="muted small">kept in this browser only, not in git (like ~/.config/jobsearch/insured.yaml)</span>
+  </form>
+</div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Files</h3>
+  <p class="small muted">Your settings and evidence base. The local app has you edit these in a text editor; here you edit them on this page.</p>
+  <table>{% for f in info.files %}<tr><td><a href="{{ url_for('browser_edit', path=f) }}">{{ f }}</a></td></tr>{% endfor %}</table>
+  <form method="post" action="/browser/upload" enctype="multipart/form-data" style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    Add a file to <select name="folder">{% for d in ["raw", "profile", "search"] %}<option>{{ d }}</option>{% endfor %}</select>
+    <input type="file" name="file" required> <button>Add</button>
+    <span class="muted small">e.g. your CV PDF into raw/ (then set <code>cv:</code> in letter-rules.yaml)</span>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">This browser</h3>
+  <p class="small">Your data is kept here encrypted with your passphrase{% if info.saved %} - last saved {{ info.saved }}{% endif %}{% if info.size %}, {{ info.size }}{% endif %}.
+    There's no recovery without the passphrase: your git repository is the backup.</p>
+  <form method="post" action="/browser/import" enctype="multipart/form-data" style="margin-bottom:.8rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <b>Replace with another bundle</b> <input type="file" name="bundle" accept=".bundle,application/octet-stream" required>
+    <details class="confirm"><summary>Replace…</summary>
+      <button class="err">Yes, replace everything here{% if repo.changes %}, uncommitted changes included{% endif %}</button></details>
+  </form>
+  <form method="post" action="/browser/wipe">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <details class="confirm"><summary class="err">Delete my data from this browser…</summary>
+      <button class="err">Yes, delete it{% if repo.changes %} (uncommitted changes are lost){% endif %}</button></details>
+  </form>
+</div>
+{% endblock %}

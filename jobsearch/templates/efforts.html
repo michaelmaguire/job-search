@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Efforts · Job search{% endblock %}
+{% block body %}
+<details class="card" id="paste-email">
+  <summary><b>Paste an email about an application</b> <span class="muted small">- an acknowledgement ("we received your application"), a rejection, …</span></summary>
+  <form method="post" action="{{ url_for('paste_email') }}" style="margin-top:.5rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+    <textarea name="text" style="min-height:10rem" placeholder="Paste the email, ideally with its From:/Date: lines or the &quot;On … wrote:&quot; line" required></textarea>
+    <div class="grid" style="margin-top:.4rem">
+      <label>What is it<select name="kind">{% for k, label in KINDS.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>Which application<select name="job_id"><option value="auto">work it out from the email</option>
+        {% for j in open_jobs %}<option value="{{ j.id }}">{{ j.company }} - {{ j.title[:60] }} ({{ j.status }})</option>{% endfor %}</select></label>
+      <label>Rejection reason (optional)<input name="reason" placeholder="default: the start of their message"></label>
+    </div>
+    <button class="primary" style="margin-top:.4rem">Save email</button>
+    <span class="muted small">Saved word for word in the job's folder. An acknowledgement sets the job to <b>acknowledged</b>;
+      a rejection sets it to <b>rejected</b> and logs the result (with the reason) for the monthly form.</span>
+  </form>
+</details>
+
+<div class="card">
+  <h3 style="margin-top:0">Log an effort</h3>
+  <p class="small muted">For efforts not tied to a saved advert: spontaneous applications, recruiter calls, networking. Efforts for a saved advert are easier to log from its job page.</p>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid">
+      <label>Date<input type="date" name="date" value="{{ today }}"></label>
+      <label>Type<select name="type">{% for t in TYPES %}<option>{{ t }}</option>{% endfor %}</select></label>
+      {% for f in FIELDS if f not in ["date", "type", "method", "result"] %}
+      <label>{{ f.replace("_", " ") }}<input name="{{ f }}"></label>
+      {% endfor %}
+      <label>method<select name="method"><option></option>{% for m in METHODS %}<option>{{ m }}</option>{% endfor %}</select></label>
+      <label>result<select name="result"><option></option>{% for r in RESULTS %}<option>{{ r }}</option>{% endfor %}</select></label>
+    </div>
+    <button class="primary" style="margin-top:.5rem">Log effort</button>
+  </form>
+</div>
+
+<form method="get" style="margin-bottom:.6rem">Month <input name="month" value="{{ month }}" placeholder="YYYY-MM"> <button>Filter</button></form>
+<div class="scroll">
+<table>
+  <tr><th>Date</th><th>Type</th><th>Company</th><th>Title</th><th>Method</th><th>Result</th><th>Notes</th><th></th></tr>
+  {% for i, r in rows %}
+  <tr>
+    <td style="white-space:nowrap">{{ r.date }}</td><td>{{ r.type }}</td><td>{{ r.company }}</td>
+    <td>{% if r.job_id %}<a href="{{ url_for('job', job_id=r.job_id) }}">{{ r.job_title }}</a>{% else %}{{ r.job_title }}{% endif %}</td>
+    <td>{{ r.method }}</td><td>{{ r.result }}{% if r.rejection_reason %} – {{ r.rejection_reason }}{% endif %}</td>
+    <td class="small">{{ r.notes }}{% if r.interview_with %} ({{ r.interview_with }}, {{ r.interviewer_role }}){% endif %}</td>
+    <td><a href="{{ url_for('effort_edit', idx=i) }}">edit</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">No efforts logged{% if month %} for {{ month }}{% endif %}.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

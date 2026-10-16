@@ -1,0 +1,91 @@
+# Job search configuration for `jobsearch fetch`
+# Companies to poll are listed in search/companies.yaml.
+
+sources:
+  swissdevjobs: true          # all Swiss dev jobs (metadata only; full text via /add-job)
+  companies_file: companies.yaml   # every 'polled' entry there is fetched
+
+filters:
+  # A job is kept if its title matches one include pattern and no exclude pattern
+  # (regex, case-insensitive), AND its location matches one location pattern.
+  title_include:
+    - software
+    - engineer
+    - developer
+    - entwickler
+    - ingenieur
+    - architect
+    - \bc\+\+
+    - \bjava\b
+    - backend|back-end
+    - embedded
+    - firmware
+    - platform
+    - infrastructure
+    - reliability|\bsre\b
+    - tech(nical)? lead
+  title_exclude:
+    - intern\b|internship|praktik|werkstudent|working student|apprentic|lehrling|trainee
+    - junior
+    - sales|account (executive|manager)|recruit|marketing|legal|counsel|people partner
+    - front-?end(?!.*(back|full))
+    - \bios\b|android
+    - designer
+    - support engineer|customer success|solutions? engineer|sales engineer|field engineer
+    - data analyst|business analyst
+    - manager|head of|director|\bvp\b
+    - new grad|graduate|solutions? architect|services architect|consulting engineer|applied ai|product engineer|\bav engineer|data cent(er|re)|electronics|mechanical|hardware test
+    - footwear|apparel|accessor|tooling|sports engineer|supplier|quality engineer|product quality
+    - data (engineer|scientist)|machine learning|\bml\b|ai/ml|research (engineer|scientist)|forward deployed
+    - \.net|react|full-?stack|php|\bsap\b|erp|power platform|salesforce|servicenow
+    - requirements engineer|test automation|\bqa\b|network engineer|\bict\b|it system|patent|integration engineer
+  locations:
+    - switzerland|schweiz|suisse|svizzera|\bch\b
+    - z[uü]rich|zuerich|winterthur|\bbaden\b|kloten
+    - \bzug\b|baar|\bcham\b|rotkreuz|schwyz|arth|goldau
+    - lugano|ticino|tessin|bellinzona|locarno|mendrisio|chiasso
+    - remote.*(europe|emea|switzerland|anywhere|global|worldwide)
+    - (europe|emea).*remote
+
+# Where office/hybrid roles are commutable for you (edit to your own area; delete the list to turn this off). An advert whose locations are
+# all outside these - and that isn't remote - is not saved by fetch and is hidden in the inbox.
+# A bare "Switzerland" with no city is kept (could be anywhere or remote).
+commute_area:
+  - z[uü]rich|zuerich|winterthur|\bbaden\b|kloten|d[uü]bendorf|uster|wallisellen|opfikon|glattbrugg|schlieren|dietikon|oerlikon|altstetten|thalwil|horgen|adliswil|w[aä]denswil|r[uü]schlikon|meilen|k[uü]snacht|b[uü]lach|regensdorf
+  - pf[aä]ffikon|freienbach|lachen|einsiedeln
+  - \bzug\b|baar|\bcham\b|rotkreuz|schwyz|arth|goldau
+  - lugano|ticino|tessin|bellinzona|locarno|mendrisio|chiasso
+
+# Adverts scoring below this are ignored entirely.
+min_score: 2
+
+# Minimum acceptable salary, CHF per year (0 = off). An advert whose stated salary range
+# tops out below this is not saved by fetch and is hidden in the inbox. Adverts that state no
+# salary (most of them) are unaffected. Also editable on the Sources tab.
+min_salary: 150000
+
+# Approximate exchange rates to CHF, for salaries stated in other currencies (edit as needed).
+fx_to_chf:
+  EUR: 0.93
+  USD: 0.80
+  GBP: 1.07
+
+# Relevance score: +weight for each term found in title or description.
+score_terms:
+  "c\\+\\+": 3
+  "\\bjava\\b": 2
+  "python": 1
+  "distributed": 2
+  "low[- ]latency": 2
+  "embedded|firmware|rtos|zephyr": 2
+  "slam|sensor fusion|gnss|computer vision": 2
+  "linux": 1
+  "security|pki|cryptograph|x\\.?509|openssl": 2
+  "storage": 1
+  "trading|order management|equities|bank|fintech|financial": 2
+  "conan|cmake|build system": 2
+  "airflow|rabbitmq|kafka|messaging": 1
+  "mobile": 1
+  "staff|principal|senior": 1
+  "german|deutsch": 1
+  "italian": 1

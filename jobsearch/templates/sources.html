@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Sources · Job search{% endblock %}
+{% macro board_url(board) -%}
+  {%- set ats, slug = board.split(":", 1) if ":" in board else ("", board) -%}
+  {%- if ats == "greenhouse" %}https://job-boards.greenhouse.io/{{ slug }}
+  {%- elif ats == "lever" %}https://jobs.lever.co/{{ slug }}
+  {%- elif ats == "ashby" %}https://jobs.ashbyhq.com/{{ slug }}
+  {%- elif ats == "smartrecruiters" %}https://careers.smartrecruiters.com/{{ slug }}
+  {%- elif ats == "recruitee" %}https://{{ slug }}.recruitee.com/
+  {%- elif ats == "personio" %}https://{{ slug }}.jobs.personio.de/
+  {%- elif ats == "successfactors" %}https://{{ slug }}/search/
+  {%- elif ats == "workday" %}https://{{ slug.split("/")[0] }}.myworkdayjobs.com/{{ slug.split("/", 1)[1] if "/" in slug else "" }}
+  {%- endif -%}
+{%- endmacro %}
+{% macro edit_row(e, cols) %}
+<tr id="l{{ e.line }}"><td colspan="{{ cols }}">
+  <form method="post" action="{{ url_for('source_change', line=e.line) }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="old_name" value="{{ e.name }}">
+    <div class="grid">
+      <label>name<input name="name" value="{{ e.name }}" required></label>
+      <label>board (empty = check by hand)<input name="board" value="{{ e.board }}" placeholder="greenhouse:acme"></label>
+      <label>careers page<input name="careers" value="{{ e.careers }}" placeholder="https://..."></label>
+      <label>history<input name="history" value="{{ e.history }}"></label>
+    </div>
+    <button class="primary" style="margin-top:.5rem">Save</button>
+    <a href="{{ url_for('sources_page') }}#l{{ e.line }}">Cancel</a>
+  </form>
+</td></tr>
+{% endmacro %}
+{% macro actions(e) %}
+  <a href="{{ url_for('sources_page', edit=e.line) }}#l{{ e.line }}">Edit</a>
+  <form class="inline" method="post" action="{{ url_for('source_change', line=e.line) }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="old_name" value="{{ e.name }}">
+    <details class="confirm"><summary>Remove</summary> <button name="action" value="remove" class="err">Yes, remove {{ e.name }}</button></details>
+  </form>
+{% endmacro %}
+{% macro block_button(source, label="Block") %}
+  <form class="inline" method="post" action="{{ url_for('source_block') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="source" value="{{ source }}">
+    <input type="hidden" name="reason">
+    <button title="Stop fetching {{ source }} and hide its adverts from the inbox (undo under Blocked sources)">{{ label }}</button>
+  </form>
+{% endmacro %}
+{% block body %}
+<div class="card">
+  <h3 style="margin-top:0">Filters</h3>
+  <form method="post" action="{{ url_for('source_min_salary') }}" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <b>Minimum salary</b> CHF <input name="min_salary" value="{{ min_salary }}" size="9" inputmode="numeric"> per year
+    <button>Save</button>
+    <span class="muted small">0 = off. Adverts whose stated salary range tops out below this aren't saved and are hidden in the inbox
+      ({{ below }} hidden now). Adverts without a salary are unaffected.</span>
+  </form>
+</div>
+
+<h3 id="sites">Job sites ({{ sites|length }})</h3>
+<p class="muted small">Sites that list adverts from many companies. Switched off: not fetched, but adverts already fetched stay.
+  Blocked: not fetched, and its adverts are hidden from the inbox.</p>
+<div class="scroll">
+<table>
+  <tr><th>Site</th><th>What it provides</th><th>Adverts</th><th>State</th><th></th></tr>
+  {% for site in sites %}
+  <tr>
+    <td><a href="{{ site.url }}" target="_blank">{{ site.name }}</a></td>
+    <td class="small">{{ site.about }}</td>
+    <td><a href="{{ url_for('inbox', status='all', q=site.key, blocked=1) }}">{{ site.count }}</a></td>
+    <td>{% if site.blocked %}<span class="pill err">blocked</span>{% else %}<span class="pill">{{ "on" if site.on else "off" }}</span>{% endif %}</td>
+    <td style="white-space:nowrap">
+      {% if site.blocked %}<a href="#blocked">unblock below</a>{% else %}
+      <form class="inline" method="post" action="{{ url_for('source_site', site=site.key) }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button name="on" value="{{ '0' if site.on else '1' }}">{{ "Switch off" if site.on else "Switch on" }}</button>
+      </form>
+      {{ block_button(site.key) }}{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+
+<h3 id="polled">Company boards - polled automatically ({{ entries.polled|length - blocked_boards|length }})</h3>
+<p class="muted small">One company's own job board each. <b>Fetch new adverts</b> polls them all.</p>
+<details style="margin-bottom:.6rem">
+  <summary><b>Add a company</b></summary>
+  <div class="card" style="margin-top:.4rem">
+  <form method="post" action="{{ url_for('source_add') }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="grid">
+        <label>name<input name="name" required></label>
+        <label>board (empty = check by hand)<input name="board" placeholder="greenhouse:acme"></label>
+        <label>careers page<input name="careers" placeholder="https://..."></label>
+        <label>history<input name="history" placeholder="e.g. applied May 2025"></label>
+      </div>
+      <button class="primary" style="margin-top:.5rem">Add</button>
+    </form>
+    <p class="muted small" style="margin-bottom:0">
+      With a board, <b>Fetch new adverts</b> polls it; without one it goes on the hand-checked list.
+      The board is the ATS plus the company's name in its job-board URL:
+      <code>job-boards.greenhouse.io/<b>acme</b></code> → <code>greenhouse:acme</code>,
+      <code>jobs.lever.co/<b>acme</b></code> → <code>lever:acme</code>,
+      <code>jobs.ashbyhq.com/<b>acme</b></code> → <code>ashby:acme</code>,
+      <code>careers.smartrecruiters.com/<b>Acme</b></code> → <code>smartrecruiters:Acme</code>,
+      <code><b>acme</b>.recruitee.com</code> → <code>recruitee:acme</code>,
+      <code><b>acme</b>.jobs.personio.de</code> → <code>personio:acme</code>,
+    <code><b>acme.wd3</b>.myworkdayjobs.com/<b>Careers</b></code> → <code>workday:acme.wd3/Careers</code>
+    (for Workday you can paste the careers URL itself; only Swiss postings are fetched),
+    SuccessFactors career sites (their job lists live at <code>&lt;host&gt;/search/</code>) → <code>successfactors:careers.example.com</code>.
+      Use <b>Test</b> to check a board before relying on it.
+    </p>
+  </div>
+</details>
+<div class="scroll">
+<table>
+  <tr><th>Company</th><th>Board</th><th>History</th><th>Adverts</th><th></th></tr>
+  {% for e in entries.polled if e.board not in blocked_boards %}
+    {% if e.line == edit %}{{ edit_row(e, 5) }}{% else %}
+    <tr id="l{{ e.line }}">
+      <td>{% if e.careers %}<a href="{{ e.careers }}">{{ e.name }}</a>{% else %}{{ e.name }}{% endif %}</td>
+      <td class="small"><a href="{{ board_url(e.board) }}">{{ e.board }}</a></td>
+      <td class="small">{{ e.history }}</td>
+      <td><a href="{{ url_for('inbox', status='all', q=e.board) }}">{{ counts.get(e.board, 0) }}</a></td>
+      <td style="white-space:nowrap">
+        <form class="inline" method="post" action="{{ url_for('source_test') }}">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="board" value="{{ e.board }}">
+          <button title="Fetch this board now and count adverts (nothing is saved)">Test</button>
+        </form>
+        {{ actions(e) }}
+        {{ block_button(e.board) }}
+      </td>
+    </tr>
+    {% endif %}
+  {% endfor %}
+</table>
+</div>
+
+<h3>Checked by hand ({{ entries.manual|length }})</h3>
+<p class="muted small">Companies whose careers pages aren't on a supported board. Edit one and add a board to have it polled.</p>
+<div class="scroll">
+<table>
+  <tr><th>Company</th><th>History</th><th></th></tr>
+  {% for e in entries.manual %}
+    {% if e.group and (loop.first or e.group != loop.previtem.group) %}
+    <tr><td colspan="3" class="muted small" style="padding-top:.8rem"><b>{{ e.group }}</b></td></tr>
+    {% endif %}
+    {% if e.line == edit %}{{ edit_row(e, 3) }}{% else %}
+    <tr id="l{{ e.line }}">
+      <td>{% if e.careers %}<a href="{{ e.careers }}">{{ e.name }}</a>{% else %}{{ e.name }}{% endif %}</td>
+      <td class="small">{{ e.history }}</td>
+      <td style="white-space:nowrap">{{ actions(e) }}</td>
+    </tr>
+    {% endif %}
+  {% endfor %}
+</table>
+</div>
+
+<h3 id="blocked">Blocked sources ({{ blocked_sources|length }})</h3>
+<p class="muted small">A blocked source is not fetched, and adverts already fetched from it are hidden from the inbox.
+  This is separate from <a href="{{ url_for('companies_page') }}">blocked companies</a>: unblocking a source here doesn't
+  unblock companies there, and a blocked company stays hidden even when it shows up on a source you keep.</p>
+<form method="post" action="{{ url_for('source_block') }}" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input name="source" placeholder="swissdevjobs or greenhouse:acme" required>
+  <input name="reason" placeholder="reason (optional)" style="flex:1;min-width:12rem">
+  <button>Block source</button>
+</form>
+<div class="scroll">
+<table>
+  <tr><th>Source</th><th>Reason</th><th>Blocked</th><th>Adverts hidden</th><th></th></tr>
+  {% for b in blocked_sources %}
+  <tr>
+    <td>{{ b.source }}{% for e in entries.polled if e.board == b.source %} <span class="muted small">({{ e.name }})</span>{% endfor %}</td>
+    <td class="small">{{ b.reason }}</td>
+    <td class="small">{{ b.blocked }}</td>
+    <td><a href="{{ url_for('inbox', status='all', q=b.source, blocked=1) }}">{{ hidden.get(b.source, 0) }}</a></td>
+    <td><form class="inline" method="post" action="{{ url_for('source_unblock') }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="source" value="{{ b.source }}">
+      <button>Unblock</button></form></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">No blocked sources.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% set by_company = entries.polled|selectattr("board", "in", blocked_boards)|rejectattr("board", "in", blocked_sources|map(attribute="source")|list)|list %}
+{% if by_company %}
+<p class="muted small">Not polled because the company is blocked:
+  {% for e in by_company %}{{ e.name }} ({{ e.board }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% endif %}
+
+{% endblock %}

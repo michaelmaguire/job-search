@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Companies · Job search{% endblock %}
+{% block body %}
+<h3 style="margin-top:0" id="blocked">Blocked companies ({{ blocked|length }})</h3>
+<p class="muted small">A blocked company's adverts are hidden from the inbox whichever source they come from, including
+  job sites you keep, and new ones aren't saved when fetching. Its own board isn't polled. This is separate from
+  <a href="{{ url_for('sources_page') }}#blocked">blocked sources</a>. Names are compared ignoring case, punctuation,
+  "(Lugano)"-style notes and endings like AG, SA, GmbH, Inc, Ltd. Add aliases for other spellings.</p>
+<form method="post" action="{{ url_for('company_block') }}" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input name="name" placeholder="company" required>
+  <input name="aliases" placeholder="aliases, comma-separated (optional)">
+  <input name="reason" placeholder="reason (optional)" style="flex:1;min-width:12rem">
+  <button>Block company</button>
+</form>
+<div class="scroll">
+<table>
+  <tr><th>Company</th><th>Aliases</th><th>Reason</th><th>Blocked</th><th>Adverts hidden</th><th></th></tr>
+  {% for b in blocked %}
+  <tr>
+    <td>{{ b.name }}</td>
+    <td class="small">{{ (b.aliases or [])|join(", ") }}</td>
+    <td class="small">{{ b.reason }}</td>
+    <td class="small">{{ b.blocked }}</td>
+    <td><a href="{{ url_for('inbox', status='all', q=b.name.lower(), blocked=1) }}">{{ hidden.get(b.name, 0) }}</a></td>
+    <td><form class="inline" method="post" action="{{ url_for('company_unblock') }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ b.name }}">
+      <button>Unblock</button></form></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">No blocked companies.</td></tr>
+  {% endfor %}
+</table>
+</div>
+
+<h3>All companies ({{ rows|length }})</h3>
+<form method="get" style="display:flex;gap:.5rem;margin-bottom:.6rem">
+  <input name="q" value="{{ q }}" placeholder="company">
+  <button>Filter</button>
+</form>
+<p class="muted small">Every company with an advert in the inbox, an entry on the Sources tab, or a row in the efforts log.</p>
+<div class="scroll">
+<table>
+  <tr><th>Company</th><th>Adverts</th><th>By status</th><th>From</th><th>Sources tab</th><th>Efforts</th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.name }}{% if r.names|length > 1 %} <span class="muted small" title="{{ r.names|sort|join(' / ') }}">+{{ r.names|length - 1 }} spelling{{ "s" if r.names|length > 2 }}</span>{% endif %}</td>
+    <td>{% if r.adverts %}<a href="{{ url_for('inbox', status='all', q=r.name.lower()) }}">{{ r.adverts }}</a>{% else %}0{% endif %}</td>
+    <td class="small">{% for s, n in r.statuses|dictsort %}{{ s }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</td>
+    <td class="small">{{ r.sources|sort|join(", ") }}</td>
+    <td class="small">{{ r.listed }}</td>
+    <td>{% if r.efforts %}<a href="{{ url_for('efforts_page') }}">{{ r.efforts }}</a>{% endif %}</td>
+    <td>
+      <form class="inline" method="post" action="{{ url_for('company_block') }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ r.name }}">
+        <input type="hidden" name="reason"><input type="hidden" name="next" value="{{ request.full_path }}">
+        <button title="Hide every advert from {{ r.name }}, from any source">Block</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}
