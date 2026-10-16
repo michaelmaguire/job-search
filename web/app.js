@@ -69,6 +69,34 @@ function toast(message) {
   box.append(t);
 }
 
+// ---------------------------------------------------------------- version (bottom left)
+// The commit this copy of the app was published from: version.json, written by the Pages workflow. A copy run
+// straight from a clone has none.
+
+let version = null;
+fetch(new URL("version.json", import.meta.url), { cache: "no-store" })
+  .then((r) => (r.ok ? r.json() : { commit: "" }), () => ({ commit: "" }))
+  .then((v) => { version = v; showVersion(); });
+
+function showVersion() {
+  if (!version) return;
+  let tag = document.getElementById("js-version");
+  if (!tag) {
+    const sha = /^[0-9a-f]{40}$/.test(version.commit || "") ? version.commit : "";
+    const repo = /^[\w.-]+\/[\w.-]+$/.test(version.repo || "") ? version.repo : "";
+    tag = document.createElement(sha && repo ? "a" : "span");
+    tag.id = "js-version";
+    tag.textContent = sha ? `version ${sha.slice(0, 7)}` : "version: local copy";
+    if (sha && repo) {
+      tag.href = `https://github.com/${repo}/commit/${sha}`;
+      tag.target = "_blank";
+      tag.rel = "noopener noreferrer";
+      tag.title = "the commit this page was published from";
+    }
+  }
+  if (!tag.isConnected) document.body.append(tag);
+}
+
 // ---------------------------------------------------------------- the extension's advert link
 
 function readAdvertFromHash() {
@@ -143,6 +171,7 @@ function show(res, { keepScroll = false } = {}) {
   document.body.className = "";
   document.body.replaceChildren(...doc.body.childNodes);
   if (statusText) say(statusText, statusEl && statusEl.className);
+  showVersion();
   for (const fr of document.querySelectorAll("iframe[data-src]")) frameFile(fr);
   const target = res.fragment && document.getElementById(res.fragment);
   if (target) target.scrollIntoView();
@@ -285,6 +314,7 @@ function screen(...nodes) {
   document.body.replaceChildren(el("header", {}, el("b", {}, "Job search")), el("main", {}, ...nodes),
     el("footer", { class: "muted small" }, "Your data is decrypted only in this browser tab and saved encrypted in this browser. Nothing is sent anywhere."));
   if (statusText) say(statusText, statusEl && statusEl.className);
+  showVersion();
 }
 
 async function enter(firstPath) {

@@ -32,6 +32,8 @@ jobs:
         run: |
           mkdir -p _site/jobsearch
           cp -r web _site/web
+          # the commit this copy was published from, shown at the bottom left of every page
+          printf '{"commit": "%s", "repo": "%s"}\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" > _site/web/version.json
           cp -r jobsearch/*.py jobsearch/templates jobsearch/forms _site/jobsearch/
           find _site -name __pycache__ -prune -exec rm -r {} +
           printf '<!doctype html><meta http-equiv="refresh" content="0; url=web/"><a href="web/">Job search</a>\n' > _site/index.html
