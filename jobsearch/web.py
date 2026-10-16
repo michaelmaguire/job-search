@@ -164,6 +164,7 @@ def create_app():
         def read(name):
             return (d / name).read_text(encoding="utf-8") if (d / name).exists() else ""
         draft = read("letter.draft.md")
+        profile = (jobs.split_front_matter(draft)[0].get("profile") if draft else None) or "ch"  # the letter's sender
         check_txt = read("letter.check.txt")
         files = sorted(((p.name, dt.datetime.fromtimestamp(p.stat().st_mtime)) for p in d.iterdir() if p.is_file()),
                        key=lambda f: f[1], reverse=True)
@@ -191,7 +192,7 @@ def create_app():
                 via = None
         return render_template("job.html", j=j, via=via, last_run=last_run, emails=correspondence.emails(d), KINDS=correspondence.KINDS, notes=read("notes.md"), draft=draft, analysis=read("letter.analysis.md"),
                                drafter=drafter, letter_pdf=letter_pdf, letter_docx=word, stale=stale, mail=mail, cv=cv,
-                               folder=d, file_names={n for n, _ in files},
+                               folder=d, file_names={n for n, _ in files}, profile=profile,
                                attached=[a.name for a in attached], problems=problems, gmail_status=gmail.status(),
                                check_txt=check_txt,
                                files=files, snapshots=snapshots, history=history, today=jobs.today(),
@@ -247,6 +248,17 @@ def create_app():
         if not cv or not cv.exists():
             abort(404)
         return send_from_directory(cv.parent, cv.name)
+
+    @app.post("/job/<job_id>/cv")
+    def job_cv_upload(job_id):
+        f = request.files.get("file")
+        try:
+            rel, profile = gmail.save_cv(job_id, f.filename if f else "", f.read() if f else b"")
+            flash(f"CV saved as {rel} and set as the '{profile}' sender's cv: in letter-rules.yaml - "
+                  "every letter with that sender profile uses it")
+        except ValueError as e:
+            flash(f"error: {e}")
+        return redirect(url_for("job", job_id=job_id) + "#quick-files")
 
     @app.post("/job/<job_id>/claude")
     def run_claude(job_id):
@@ -493,7 +505,7 @@ def create_app():
             flash("error: " + e)
         if not errors:
             flash(f"added {request.form['name']}")
-        return redirect(url_for("sources_page"))
+        return redirect(request.form.get("next") or url_for("sources_page"))
 
     @app.post("/sources/<int:line>")
     def source_change(line):

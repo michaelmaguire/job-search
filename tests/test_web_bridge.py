@@ -81,6 +81,14 @@ class Bridge(unittest.TestCase):
         self.assertEqual(r["filename"], "posting.md")
         self.assertIn(b"C++", body)
 
+    def test_uploaded_files_reach_flask(self):
+        self.post("/add", company="Acme AG", title="Engineer", text="C++")
+        job_id = jobs.all_jobs()[0]["id"]
+        r = json.loads(bridge.handle("POST", f"/job/{job_id}/cv", json.dumps([["csrf", self.csrf]]),
+                                     [("file", "My CV.pdf", b"%PDF-1.4 cv")]))
+        self.assertIn("CV saved as raw/My CV.pdf", r["text"])
+        self.assertEqual((paths.DATA / "raw" / "My CV.pdf").read_bytes(), b"%PDF-1.4 cv")
+
     def test_messages_from_worker_actions_show_on_the_next_page(self):
         bridge.flash_later("committed 2 file(s): test")
         self.assertIn("committed 2 file(s): test", call("GET", "/")[0]["text"])

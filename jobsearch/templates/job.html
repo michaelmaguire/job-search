@@ -46,7 +46,15 @@
     <tr><td>CV</td><td>
       {% if cv and cv.exists() %}<a href="{{ url_for('job_cv', job_id=j.id) }}" target="_blank">PDF</a>
         <span class="muted small">· {{ cv.name }}</span>
-      {% else %}<span class="warn">no CV set (letter-rules.yaml <code>cv:</code>)</span>{% endif %}</td></tr>
+      {% elif cv %}<span class="warn">CV not found: <code>{{ cv.relative_to(data_dir) if cv.is_relative_to(data_dir) else cv }}</code></span>
+      {% else %}<span class="warn">no CV set yet</span>{% endif %}
+      <form method="post" action="{{ url_for('job_cv_upload', job_id=j.id) }}" enctype="multipart/form-data"
+            style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.3rem">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="file" name="file" accept=".pdf,.docx,.doc,.odt" required>
+        <button>{{ "Replace CV" if cv and cv.exists() else "Upload CV" }}</button>
+        <span class="muted small">saved in raw/ and used for every letter from this sender profile ({{ profile }})</span>
+      </form></td></tr>
   </table>
 </div>
 

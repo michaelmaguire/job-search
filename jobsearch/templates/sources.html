@@ -80,35 +80,7 @@
 
 <h3 id="polled">Company boards - polled automatically ({{ entries.polled|length - blocked_boards|length }})</h3>
 <p class="muted small">One company's own job board each. <b>Fetch new adverts</b> polls them all.</p>
-<details style="margin-bottom:.6rem">
-  <summary><b>Add a company</b></summary>
-  <div class="card" style="margin-top:.4rem">
-  <form method="post" action="{{ url_for('source_add') }}">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <div class="grid">
-        <label>name<input name="name" required></label>
-        <label>board (empty = check by hand)<input name="board" placeholder="greenhouse:acme"></label>
-        <label>careers page<input name="careers" placeholder="https://..."></label>
-        <label>history<input name="history" placeholder="e.g. applied May 2025"></label>
-      </div>
-      <button class="primary" style="margin-top:.5rem">Add</button>
-    </form>
-    <p class="muted small" style="margin-bottom:0">
-      With a board, <b>Fetch new adverts</b> polls it; without one it goes on the hand-checked list.
-      The board is the ATS plus the company's name in its job-board URL:
-      <code>job-boards.greenhouse.io/<b>acme</b></code> → <code>greenhouse:acme</code>,
-      <code>jobs.lever.co/<b>acme</b></code> → <code>lever:acme</code>,
-      <code>jobs.ashbyhq.com/<b>acme</b></code> → <code>ashby:acme</code>,
-      <code>careers.smartrecruiters.com/<b>Acme</b></code> → <code>smartrecruiters:Acme</code>,
-      <code><b>acme</b>.recruitee.com</code> → <code>recruitee:acme</code>,
-      <code><b>acme</b>.jobs.personio.de</code> → <code>personio:acme</code>,
-    <code><b>acme.wd3</b>.myworkdayjobs.com/<b>Careers</b></code> → <code>workday:acme.wd3/Careers</code>
-    (for Workday you can paste the careers URL itself; only Swiss postings are fetched),
-    SuccessFactors career sites (their job lists live at <code>&lt;host&gt;/search/</code>) → <code>successfactors:careers.example.com</code>.
-      Use <b>Test</b> to check a board before relying on it.
-    </p>
-  </div>
-</details>
+{% include "_add_company.html" %}
 <div class="scroll">
 <table>
   <tr><th>Company</th><th>Board</th><th>History</th><th>Adverts</th><th></th></tr>

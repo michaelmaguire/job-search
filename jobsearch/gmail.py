@@ -170,6 +170,72 @@ def cv_path(job):
     return DATA / sender["cv"] if sender.get("cv") else None
 
 
+CV_TYPES = (".pdf", ".docx", ".doc", ".odt")
+
+
+def save_cv(job, filename, data):
+    """Save an uploaded CV into raw/ and make it the `cv:` of this job's sender profile in letter-rules.yaml
+    (so every letter with that profile uses it). Never overwrites a different file of the same name.
+    Returns (path inside the data repo, profile)."""
+    import re
+
+    from .jobs import job_dir
+    from .paths import DATA
+    meta, _ = _sender(job_dir(job))
+    profile = meta.get("profile", "ch")
+    name = re.sub(r"[^\w.() -]", "_", Path(filename or "").name).strip(" .")
+    if not name or Path(name).suffix.lower() not in CV_TYPES:
+        raise ValueError(f"choose a CV file ({', '.join(CV_TYPES)})")
+    if not data:
+        raise ValueError("the file is empty")
+    dest = DATA / "raw" / name
+    n = 2
+    while dest.exists() and dest.read_bytes() != data:  # raw/ holds the sources of your facts: keep what's there
+        dest = dest.with_name(f"{Path(name).stem}-{n}{Path(name).suffix}")
+        n += 1
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    rel = dest.relative_to(DATA).as_posix()
+    set_rules_cv(profile, rel)
+    return rel, profile
+
+
+def set_rules_cv(profile, rel):
+    """Set senders.<profile>.cv in letter-rules.yaml by editing that one line (or adding it), so the file's
+    comments and layout stay as you wrote them."""
+    import json
+    import re
+
+    import yaml
+
+    from .paths import RULES
+    value = rel if re.fullmatch(r"[\w./()-]+", rel) else json.dumps(rel)
+    lines = RULES.read_text(encoding="utf-8").splitlines(keepends=True)
+    indent = lambda line: len(line) - len(line.lstrip(" "))  # noqa: E731
+    top = next((i for i, line in enumerate(lines) if re.match(r"senders:\s*(#.*)?$", line)), None)
+    start = next((i for i in range(top + 1, len(lines)) if re.match(rf"\s+{re.escape(profile)}:\s*(#.*)?$", lines[i])), None) \
+        if top is not None else None
+    if start is None:
+        raise ValueError(f"no sender '{profile}' in letter-rules.yaml - add cv: {rel} there yourself")
+    end = start + 1
+    while end < len(lines) and (not lines[end].strip() or lines[end].lstrip().startswith("#")
+                                or indent(lines[end]) > indent(lines[start])):
+        end += 1
+    keys = [i for i in range(start + 1, end) if lines[i].strip() and not lines[i].lstrip().startswith("#")]
+    pad = " " * (indent(lines[keys[0]]) if keys else indent(lines[start]) + 2)
+    cv = next((i for i in keys if re.match(rf"{pad}cv:", lines[i])), None)
+    if cv is not None:
+        comment = re.search(r"\s+#.*$", lines[cv].rstrip("\n"))
+        lines[cv] = f"{pad}cv: {value}{comment.group(0) if comment else ''}\n"
+    else:
+        at = (keys[-1] + 1) if keys else start + 1
+        lines.insert(at, f"{pad}cv: {value}\n")
+    text = "".join(lines)
+    if (yaml.safe_load(text).get("senders", {}).get(profile) or {}).get("cv") != rel:
+        raise ValueError(f"couldn't update letter-rules.yaml safely - set cv: {rel} under '{profile}' yourself")
+    RULES.write_text(text, encoding="utf-8")
+
+
 def attachments(job, include_letter=True, extra=()):
     """(paths, problems): the latest rendered letter PDF and the sender profile's CV."""
     from .jobs import job_dir

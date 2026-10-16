@@ -67,7 +67,11 @@ async function page(method, path, fields = []) {
     rt.call("set_info", JSON.stringify({ log, saved: saved.at && saved.at.toLocaleString(),
       size: saved.size && `${(saved.size / 1e6).toFixed(1)} MB` }));
   }
-  const r = rt.call("handle", method, path, JSON.stringify(fields.filter(([, v]) => typeof v === "string")));
+  const files = [];  // uploads (e.g. a CV): passed to Flask as request.files
+  for (const [k, v] of fields) {
+    if (typeof v !== "string" && v.size) files.push([k, v.name, new Uint8Array(await v.arrayBuffer())]);
+  }
+  const r = rt.call("handle", method, path, JSON.stringify(fields.filter(([, v]) => typeof v === "string")), files);
   if (method === "POST" || /[?&]format=pdf/.test(path)) { repoStale = true; scheduleSave(); }
   if (r.text !== undefined) return { kind: "html", html: r.text, path: r.path, fragment: r.fragment, status: r.status };
   return { kind: "file", body: rt.lastBody(), type: r.type, filename: r.filename, download: r.download, status: r.status };

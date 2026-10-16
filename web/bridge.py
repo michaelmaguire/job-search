@@ -10,6 +10,7 @@ tab can't do is swapped out here:
   - Gmail drafts, Claude drafting and Chrome snapshots need the local app (the pages say so).
 """
 import datetime as dt
+import io
 import json
 import os
 from pathlib import Path
@@ -162,12 +163,18 @@ def csrf():
         return json.dumps(s.get("csrf", ""))
 
 
-def handle(method, path, fields="[]"):
-    """One request, redirects followed. Returns JSON: status, final path (+ #fragment), content type and
-    download name; the body is in LAST_BODY (and in "text" for HTML)."""
+def handle(method, path, fields="[]", files=()):
+    """One request, redirects followed. files: uploaded files as (field, filename, bytes) - from the worker,
+    bytes are a JS Uint8Array. Returns JSON: status, final path (+ #fragment), content type and download
+    name; the body is in LAST_BODY (and in "text" for HTML)."""
     global LAST_BODY
     path, _, query = path.partition("?")
-    data = MultiDict(json.loads(fields)) if method == "POST" else None
+    data = None
+    if method == "POST":
+        data = MultiDict(json.loads(fields))
+        for field, filename, content in files or ():
+            content = content.to_bytes() if hasattr(content, "to_bytes") else bytes(content)
+            data.add(str(field), (io.BytesIO(content), str(filename)))
     r = client.open(path, method=method, query_string=query, data=data, follow_redirects=True)
     final = r.request.path + (f"?{r.request.query_string.decode()}" if r.request.query_string else "")
     fragment = r.history[-1].headers.get("Location", "").partition("#")[2] if r.history else ""
