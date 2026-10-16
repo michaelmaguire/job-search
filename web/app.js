@@ -306,31 +306,61 @@ function unlockScreen(error = "") {
   pendingAdvert ? el("p", {}, "Unlock to add the advert you saved: ", el("b", {}, pendingAdvert.title || "untitled")) : null,
   el("label", {}, "Passphrase", pass),
   error ? el("p", { class: "err" }, error) : null,
-  el("button", { class: "primary" }, "Unlock")));
+  el("button", { class: "primary" }, "Unlock")),
+  // Without the passphrase the data can't be decrypted by anyone, so the only way on is to delete it here and
+  // start again (from a bundle, or empty). Two steps, so it can't happen by a slip.
+  el("details", { class: "card danger", id: "forgot" },
+    el("summary", {}, "Forgot your passphrase?"),
+    el("p", {}, "Your data in this browser is encrypted with it and can't be recovered without it - not by anyone. ",
+      "You can delete it from this browser and set up again: import your records from your git repository, or start empty."),
+    el("p", { class: "err" }, "Anything not exported or pulled into your git repository is lost."),
+    el("button", { class: "danger", type: "button", id: "clear-data", onclick: async () => {
+      try {
+        await vault.destroy();
+        setupScreen();
+        say("the data stored in this browser was deleted", "ok", 4000);
+      } catch (err) { say(`couldn't delete it: ${err.message}`, "err"); }
+    } }, "Delete the data stored in this browser")));
   pass.focus();
 }
+
+// The empty starter records (examples/data-template), published next to the app by the Pages workflow.
+const STARTER = new URL("../starter.bundle", location.href);
 
 function setupScreen(error = "") {
   const pass = el("input", { type: "password", autocomplete: "new-password", minlength: 10, required: true, id: "new-passphrase" });
   const again = el("input", { type: "password", autocomplete: "new-password", required: true, id: "new-passphrase-again" });
-  const file = el("input", { type: "file", accept: ".bundle,application/octet-stream", required: true, id: "bundle" });
+  const file = el("input", { type: "file", accept: ".bundle,application/octet-stream", id: "bundle" });
   screen(el("form", { class: "card", onsubmit: async (e) => {
     e.preventDefault();
     if (pass.value !== again.value) return setupScreen("the passphrases don't match");
+    const starter = e.submitter && e.submitter.value === "starter";
+    if (!starter && !file.files[0]) return setupScreen("choose your git bundle, or start with empty records");
     try {
-      const bytes = new Uint8Array(await file.files[0].arrayBuffer());
+      let bytes;
+      if (starter) {
+        const r = await fetch(STARTER);
+        if (!r.ok) throw new Error(`the starter records aren't available here (${r.status}) - they come with the published site`);
+        bytes = new Uint8Array(await r.arrayBuffer());
+      } else {
+        bytes = new Uint8Array(await file.files[0].arrayBuffer());
+      }
       await ask("setup", pass.value, bytes);
       await enter("/");
     } catch (err) { say(""); setupScreen(err.message); }
   } },
   el("h2", {}, "Set up"),
-  el("p", {}, "Import your data repository as a git bundle. Make one with:"),
-  el("pre", {}, "git -C data bundle create ~/jobsearch.bundle --all"),
-  el("label", {}, "Git bundle", file),
   el("label", {}, "New passphrase (at least 10 characters) - it encrypts your data in this browser; there is no recovery without it", pass),
   el("label", {}, "Passphrase again", again),
   error ? el("p", { class: "err" }, error) : null,
-  el("button", { class: "primary" }, "Import and encrypt")));
+  el("h3", {}, "Just trying it out?"),
+  el("p", {}, "Start with empty records: add adverts, your facts and settings as you go. You can export them as a git repository later."),
+  el("button", { class: "primary", value: "starter", id: "start-empty" }, "Start with empty records"),
+  el("h3", {}, "Already have records?"),
+  el("p", {}, "Import your data repository as a git bundle. Make one with:"),
+  el("pre", {}, "git -C data bundle create ~/jobsearch.bundle --all"),
+  el("label", {}, "Git bundle", file),
+  el("button", { value: "import", id: "import-bundle" }, "Import and encrypt")));
 }
 
 // ---------------------------------------------------------------- start

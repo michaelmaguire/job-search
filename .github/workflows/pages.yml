@@ -35,7 +35,7 @@ jobs:
           cp -r jobsearch/*.py jobsearch/templates jobsearch/forms _site/jobsearch/
           find _site -name __pycache__ -prune -exec rm -r {} +
           printf '<!doctype html><meta http-equiv="refresh" content="0; url=web/"><a href="web/">Job search</a>\n' > _site/index.html
-          # starter.bundle: the empty starter records, to try the browser version without making a bundle first
+          # starter.bundle: the empty starter records behind 'Start with empty records' on the app's first screen
           cp -r examples/data-template starter
           git -C starter init -q -b main
           git -C starter add -A

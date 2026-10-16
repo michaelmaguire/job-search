@@ -13,8 +13,13 @@ body.shell { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 syst
 .shell h2 { margin-top:0; }
 .shell label { display:flex; flex-direction:column; gap:.2rem; margin:.7rem 0; font-size:.9rem; color:var(--muted); }
 .shell input { font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:.35rem .5rem; }
-.shell button { font:inherit; padding:.35rem .9rem; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; margin-top:.4rem; }
+.shell button { font:inherit; padding:.35rem .9rem; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; margin-top:.4rem; }
+.shell button.primary { border-color:var(--accent); background:var(--accent); color:#fff; }
+.shell h3 { margin:1.4rem 0 .2rem; font-size:1rem; }
 .shell pre { white-space:pre-wrap; font:13px/1.5 ui-monospace, monospace; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.5rem; }
+.shell details.danger { margin-top:1rem; padding:.6rem 1.2rem; }
+.shell details.danger summary { cursor:pointer; color:var(--muted); }
+.shell button.danger { border-color:var(--err); background:var(--err); color:#fff; }
 .shell .muted { color:var(--muted); } .shell .small { font-size:.85rem; } .shell .err { color:var(--err); }
 
 #js-status { position:fixed; left:.8rem; bottom:.8rem; z-index:20; padding:.3rem .7rem; border-radius:6px; font:13px/1.4 system-ui, sans-serif;

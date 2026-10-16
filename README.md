@@ -50,17 +50,17 @@ This code repository holds no records: yours live in a separate, private reposit
 ## Try it in your browser
 
 Open **https://michaelmaguire.github.io/job-search/web/#/** (or `https://<you>.github.io/job-search/web/#/` for your
-fork). The first time, it asks for your records as a git bundle and a passphrase:
+fork). The first time, choose a passphrase, then either:
 
-- **To just try it,** download [starter.bundle](https://michaelmaguire.github.io/job-search/starter.bundle) - the
-  empty starter records from `examples/data-template` - and choose it there.
-- **With records you already have,** make a bundle of them: `git -C data bundle create ~/jobsearch.bundle --all`.
+- **Start with empty records** - one click, to try it out. They're the starter records from `examples/data-template`.
+- **Import your records,** if you already have them, as a git bundle: `git -C data bundle create ~/jobsearch.bundle --all`.
 
 How it works:
 
 - **Your data stays in your browser.** It's kept as one blob encrypted with your passphrase (AES-GCM, PBKDF2) and
   decrypted only in the open tab. Nothing is sent to a server. There's no recovery without the passphrase, so
-  keep your records in git as the backup.
+  keep your records in git as the backup. If you forget it, "Forgot your passphrase?" on the unlock screen deletes
+  the browser's copy so you can set up again.
 - **The same pages as the local app:** a Web Worker runs the `jobsearch` web app itself (Flask, the same routes and
   templates) in [Pyodide](https://pyodide.org), and git runs via [isomorphic-git](https://isomorphic-git.org).
 - **Data** (in the header) is where you commit, export your records as a bundle (`git clone jobsearch.bundle` makes
