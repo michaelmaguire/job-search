@@ -1,22 +1,100 @@
 # job-search
 
-Personal job-search system, run as a **local web app** (http://127.0.0.1:8765/, on your own computer only)
-where you do everything - with or without Claude:
+**For job hunters who want to run their search like a project:** find adverts before they disappear, apply
+with cover letters that are honest about what you've done, and keep the records an unemployment office asks
+for. It's built around a search in Switzerland - the RAV/URC effort form, Swiss job sites, CHF salaries,
+commute areas - but most of it works for a job search anywhere.
 
-- **fetch** job adverts from company boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workday, SuccessFactors,
-  Recruitee, Personio) and swissdevjobs.ch, saving the full text before adverts disappear;
-- **fact-checked cover letters** - every claim is tagged with an entry from a curated evidence
-  base and checked mechanically (numbers, verbs, banned puffery) before rendering to PDF/DOCX;
-- **effort records** with the fields of the Swiss RAV form 716.007, plus a monthly report in that layout, in German (RAV) or Italian (URC);
-- **search curation** - sources, blocked companies, salary and commute filters, recruiter conversations.
+**It works in two modes** - the same app and pages either way:
 
-The core steps (fetch, add, check, render, log, report) also work on the command line (`jobsearch ...`), and Claude Code
-in this directory can drive them too.
+| | [Browser mode](#try-it-in-your-browser) | [Local mode](#run-it-locally-for-the-full-app) |
+|---|---|---|
+| **What it is** | Runs entirely in your browser from a web page | A small web server you run on your own computer |
+| **To start** | Open the page - nothing to install | Clone this repository and install it (Python, plus LibreOffice and Chrome for PDFs) |
+| **Your records** | An encrypted copy kept in that browser, moved in and out as git bundles | Your clone of your records repository, committed and pushed from the app |
+| **Good for** | Trying it out, or using it on a computer where you can't install anything | Day-to-day use, with [extra features](#what-you-get-locally): drafting letters with Claude, Gmail drafts, PDFs of advert pages, fetching from every job board |
 
-Your records (adverts, letters, CV, effort log) live in `data/`, a git submodule pointing at your own
-**private** repository; this code repository holds no records. [Setup](#setup) creates that repository.
+The two don't sync automatically: use one as your main place, and move records between them as a git bundle.
 
-## Setup
+What it offers:
+
+- **One inbox for adverts.** It fetches new adverts from company job boards (Greenhouse, Lever, Ashby,
+  SmartRecruiters, Workday, SuccessFactors, Recruitee, Personio) and swissdevjobs.ch, and you add the ones you
+  find elsewhere (LinkedIn, jobs.ch, recruiters) - by pasting, or with one click using the "Save this job" browser
+  extension. The full advert text is saved, so it's still there when the advert is gone.
+- **Filters you set once.** Title and location filters, a minimum salary, your commute area, and
+  companies or sources you never want to see again.
+- **Cover letters you can stand behind.** Every claim in a letter must cite a fact from your own evidence base
+  (built from your CV and what you tell it), the advert, or your notes. A checker catches untagged sentences,
+  numbers that don't match their source, inflated verbs ("led" when you "supported") and stock puffery, before
+  the letter is rendered to PDF and Word. Claude can draft the letter for you, under the same rules.
+- **Applications tracked to the end.** Status from new to offer or rejection, acknowledgement and rejection emails
+  saved with each job, recruiter conversations, and every effort logged.
+- **A record of every advert you respond to.** Each application keeps the advert's full text and, in the local
+  app, a PDF of the advert page saved automatically when you shortlist, draft or apply - together with your
+  letter, the emails and the efforts logged for it. If the RAV/URC asks what you applied for, you can show them,
+  even after the advert has been taken down.
+- **The paperwork done for you.** A monthly report of your job-search efforts in the RAV/URC layout, in German or
+  Italian, including the official form 716.007 filled in as a PDF.
+- **Configurable to your search and your rules.** Which companies and sites to fetch from, title and location
+  filters, the terms that score an advert higher, minimum salary and exchange rates, commute area; and for
+  letters, your sender profiles (name, address, email per profile), CV, word limit, minimum number of cited
+  facts, the phrases and verbs the checker refuses, and a closing in your own words. It's all in a few YAML files
+  in your records; sources, blocks and the minimum salary can also be changed on the web app's Sources and
+  Companies tabs.
+- **Your data stays yours.** Your records are plain files (Markdown, YAML, CSV) in a private git repository of
+  your own - host it where you like, or nowhere - and everything works without Claude.
+
+This code repository holds no records: yours live in a separate, private repository.
+
+## Try it in your browser
+
+Open **https://michaelmaguire.github.io/job-search/web/#/** (or `https://<you>.github.io/job-search/web/#/` for your
+fork). The first time, it asks for your records as a git bundle and a passphrase:
+
+- **To just try it,** download [starter.bundle](https://michaelmaguire.github.io/job-search/starter.bundle) - the
+  empty starter records from `examples/data-template` - and choose it there.
+- **With records you already have,** make a bundle of them: `git -C data bundle create ~/jobsearch.bundle --all`.
+
+How it works:
+
+- **Your data stays in your browser.** It's kept as one blob encrypted with your passphrase (AES-GCM, PBKDF2) and
+  decrypted only in the open tab. Nothing is sent to a server. There's no recovery without the passphrase, so
+  keep your records in git as the backup.
+- **The same pages as the local app:** a Web Worker runs the `jobsearch` web app itself (Flask, the same routes and
+  templates) in [Pyodide](https://pyodide.org), and git runs via [isomorphic-git](https://isomorphic-git.org).
+- **Data** (in the header) is where you commit, export your records as a bundle (`git clone jobsearch.bundle` makes
+  a normal repository of it; or `git pull` from it into your clone and push), import another one, and set your
+  commit name and the name and AHV number for the URC/RAV form. You can also edit the files in `profile/` and
+  `search/` and add files such as your CV to `raw/`.
+- **Each browser keeps its own copy,** separate from any local clone: changes move between them only as bundles.
+- **Libraries:** Pyodide, isomorphic-git and the Python packages load at pinned versions from jsdelivr and PyPI.
+- **The "Save this job" extension** works with it: set the extension's address to the URL above.
+
+## Run it locally for the full app
+
+### What you get locally
+
+The local app works directly on your clone of your records, and adds what a browser tab can't do:
+
+- **Draft and revise letters with Claude.** "Draft with Claude" on a job page runs [Claude Code](https://claude.com/claude-code)
+  on your computer: it maps the advert's requirements to your facts, writes the draft and fixes it until Check
+  passes. It uses your Claude subscription - no API key or separate billing.
+- **Fetch from every supported board.** The browser can only reach boards that allow it (Greenhouse, Lever,
+  Ashby, SmartRecruiters, swissdevjobs); locally, Workday, SuccessFactors, Recruitee and Personio work too.
+- **Gmail drafts.** The application email is saved to your Gmail Drafts with the letter PDF and your CV attached,
+  ready for you to send. (In the browser, "Write in Gmail" opens a new message and you attach the files yourself.)
+- **PDFs of advert pages,** saved automatically when you shortlist, draft or apply - proof of the advert for the RAV.
+- **Letters rendered by LibreOffice,** with the exact layout; the browser's are close but not identical. Also the
+  German RAV report as a PDF (`jobsearch report --lang de --pdf`).
+- **Commit & push from the header** straight to your records repository - no bundles to move around.
+- **The command line** (`jobsearch ...`) and Claude Code skills in this directory: `/find-jobs`, `/add-job`,
+  `/cover-letter`, `/log-effort`.
+
+The local app opens at http://127.0.0.1:8765/ and is reachable from your own computer only. Its records live in
+`data/`, a git submodule pointing at your own private repository; [Setup](#setup) creates that repository.
+
+### Setup
 
 The `data/` submodule's URL is relative (`../job-search-data.git`): it resolves to a `job-search-data`
 repository next to whichever `job-search` you cloned. So: fork the code, create your own private
@@ -53,7 +131,7 @@ repository next to whichever `job-search` you cloned. So: fork the code, create 
 Once your fork points at your own data repository, setting up another computer is just
 `git clone --recurse-submodules git@github.com:<you>/job-search.git` followed by step 5.
 
-### Make it yours
+#### Make it yours
 
 Personal settings live in your data repository, plus a few places outside it:
 - `data/profile/facts.yaml` - your evidence base (start from your CV; put the CV itself in `data/raw/`),
@@ -67,38 +145,18 @@ Personal settings live in your data repository, plus a few places outside it:
 
 `examples/data-template/README.md` (copied into your data repository) describes every file and column.
 
-## Start the web app
+### Start the web app
 
 ```sh
 cd ~/code/job-search && .venv/bin/jobsearch serve
 ```
 Then open http://127.0.0.1:8765/ (local only; stop with Ctrl-C).
 
-## Browser version
+## Publishing the browser version
 
-`web/` runs this same app entirely in your browser: no install, and no server holding your data. It's
-published to GitHub Pages by `.github/workflows/pages.yml` (enable it once under Settings > Pages > Source:
-GitHub Actions) and works alongside the local app. Nothing above changes.
-
-- **Your data** is imported once as a git bundle (`git -C data bundle create ~/jobsearch.bundle --all`). It's kept
-  in the browser as one blob encrypted with your passphrase (AES-GCM, PBKDF2) and decrypted only in the open tab.
-  There's no recovery without the passphrase, so keep your git repo as the backup.
-- **The same pages:** a Web Worker runs the `jobsearch` web app itself (Flask, the same routes and templates) in
-  [Pyodide](https://pyodide.org). Pages look and behave as in the local app and write the same files. Git runs
-  via [isomorphic-git](https://isomorphic-git.org).
-- **Data** (in the header) is where you commit, export a bundle (`git clone jobsearch.bundle`, or `git pull` from it
-  into your clone and push), import another one, and set your commit name and the name and AHV number for the
-  URC/RAV form. You can also edit `profile/` and `search/` files and add files such as your CV to `raw/`.
-- **What differs from the local app:**
-  - **Fetching:** only reaches boards that allow browser access (Greenhouse, Lever, Ashby, SmartRecruiters,
-    swissdevjobs). The others are listed as source errors.
-  - **Letters:** rendered without LibreOffice, so they look close to, but not exactly like, the local app's.
-  - **Gmail:** there are no Gmail drafts. **Write in Gmail** opens a new message for you to attach the files to.
-  - **Local app only:** Claude drafting and advert-page PDFs.
-- **Libraries:** Pyodide, isomorphic-git and the Python packages load at pinned versions from jsdelivr and PyPI.
-  The "Save this job" extension works with it: set the extension's address to the Pages URL.
-
-Try it locally: run `python3 -m http.server 8790` in this folder, then open http://127.0.0.1:8790/web/.
+`web/` is published to GitHub Pages by `.github/workflows/pages.yml`, together with the `jobsearch` package it
+runs and `starter.bundle`. For your fork: Settings > Pages > Source: GitHub Actions, then run the "pages" workflow.
+To try changes before publishing, run `python3 -m http.server 8790` in this folder and open http://127.0.0.1:8790/web/.
 
 ## Use
 

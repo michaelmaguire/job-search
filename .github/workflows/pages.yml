@@ -1,8 +1,8 @@
 name: pages
 
 # Publishes the browser app (web/) and the jobsearch package it runs in Pyodide (modules, templates, the URC
-# form) to GitHub Pages, keeping the repo layout so web/ finds ../jobsearch/. No data is involved: each user
-# imports their own.
+# form) to GitHub Pages, keeping the repo layout so web/ finds ../jobsearch/, plus starter.bundle (the empty
+# starter records from examples/data-template). No one's data is involved: each user imports their own.
 # One-time setup: Settings > Pages > Source: GitHub Actions.
 
 on:
@@ -35,6 +35,12 @@ jobs:
           cp -r jobsearch/*.py jobsearch/templates jobsearch/forms _site/jobsearch/
           find _site -name __pycache__ -prune -exec rm -r {} +
           printf '<!doctype html><meta http-equiv="refresh" content="0; url=web/"><a href="web/">Job search</a>\n' > _site/index.html
+          # starter.bundle: the empty starter records, to try the browser version without making a bundle first
+          cp -r examples/data-template starter
+          git -C starter init -q -b main
+          git -C starter add -A
+          git -C starter -c user.name=job-search -c user.email=job-search@users.noreply.github.com commit -q -m "Start from the job-search template"
+          git -C starter bundle create ../_site/starter.bundle --all
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
