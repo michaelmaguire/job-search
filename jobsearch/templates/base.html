@@ -68,11 +68,12 @@
       {% if not repo.ok %}<span class="warn">not a git repo</span>
       {% elif repo.changes %}{{ repo.changes|length }} change{{ "s" if repo.changes|length != 1 }}{% if repo.ahead %}, {{ repo.ahead }} unpushed{% endif %}
       {% elif repo.ahead %}{{ repo.ahead }} commit{{ "s" if repo.ahead != 1 }} not pushed
+      {% elif repo.pointer_stale %}code repo not updated
       {% else %}up to date{% endif %}</span>
-    {% if repo.ok and (repo.changes or repo.ahead) %}
+    {% if repo.ok and (repo.changes or repo.ahead or repo.pointer_stale) %}
     {% if repo.changes %}<input name="message" value="{{ repo.message }}" size="28" title="commit message - edit if you like" aria-label="commit message" class="small">{% endif %}
     {% if browser %}<button title="git add -A and commit, in this browser - export a bundle on the Data page to take it elsewhere">Commit data</button>
-    {% else %}<button title="git add -A, commit and push data/ ({{ data_dir }})">{{ "Commit & push data" if repo.changes else "Push data" }}</button>{% endif %}
+    {% else %}<button title="git add -A, commit and push data/ ({{ data_dir }}), then record its new commit in the code repo (that pointer only)">{{ "Commit & push data" if repo.changes else "Push data" if repo.ahead else "Update code repo" }}</button>{% endif %}
     {% endif %}
   </form>
   {% if browser %}<a href="/browser/data">Data</a><a href="/browser/lock" title="forget the key and lock this tab">Lock</a>{% endif %}
