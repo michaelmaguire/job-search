@@ -31,9 +31,9 @@ run `./setup.sh` on its own (add `--dev` for ruff and the test extras).
 If something stops working after a `git pull`, run `./setup.sh` again. (Use a plain `git clone`, not
 `--recurse-submodules`: in a fork, that tries to fetch the upstream author's records and fails.)
 
-## Two modes
+## Also supported: Browser mode
 
-**It works in two modes** - the same app and pages either way:
+**This code works in two modes** - the same app and pages either way:
 
 | | [Browser mode](#try-it-in-your-browser) | [Local mode](#run-it-locally-for-the-full-app) |
 |---|---|---|
