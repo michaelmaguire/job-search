@@ -5,6 +5,34 @@ with cover letters that are honest about what you've done, and keep the records 
 for. It's built around a search in Switzerland - the RAV/URC effort form, Swiss job sites, CHF salaries,
 commute areas - but most of it works for a job search anywhere.
 
+## Quick start for Local mode
+
+Run it on your own computer (you need a fork and a private records repository - see [Setup](#setup)
+the first time):
+
+```sh
+git clone git@github.com:<you>/job-search.git     # your fork
+cd job-search
+./run.sh                      # sets up, starts the app and opens http://127.0.0.1:8765/
+```
+
+`./run.sh` runs `./setup.sh` each time, then starts the app (Ctrl-C to stop). To set up without starting it,
+run `./setup.sh` on its own (add `--dev` for ruff and the test extras).
+
+`setup.sh` is safe to re-run, and handles:
+- **Your records:** clones `job-search-data` from the same place as the code (`<you>/job-search-data`) into
+  `data/`. If that repository is empty, it fills it from `examples/data-template` and pushes, after asking.
+  If it doesn't exist yet, it tells you how to create it (keep it **private**). To use a different
+  repository: `./setup.sh --data-url <url>`.
+- **The app:** creates `.venv` and installs it, or rebuilds `.venv` if it's broken (for example after you
+  move or rename the folder).
+- **Optional tools:** warns if LibreOffice, Chrome or Claude Code is missing.
+
+If something stops working after a `git pull`, run `./setup.sh` again. (Use a plain `git clone`, not
+`--recurse-submodules`: in a fork, that tries to fetch the upstream author's records and fails.)
+
+## Two modes
+
 **It works in two modes** - the same app and pages either way:
 
 | | [Browser mode](#try-it-in-your-browser) | [Local mode](#run-it-locally-for-the-full-app) |
@@ -16,7 +44,7 @@ commute areas - but most of it works for a job search anywhere.
 
 The two don't sync automatically: use one as your main place, and move records between them as a git bundle.
 
-What it offers:
+## What it offers
 
 - **One inbox for adverts.** It fetches new adverts from company job boards (Greenhouse, Lever, Ashby,
   SmartRecruiters, Workday, SuccessFactors, Recruitee, Personio) and swissdevjobs.ch, and you add the ones you
@@ -46,27 +74,6 @@ What it offers:
   your own - host it where you like, or nowhere - and everything works without Claude.
 
 This code repository holds no records: yours live in a separate, private repository.
-
-## Quick start
-
-```sh
-git clone git@github.com:<you>/job-search.git     # your fork
-cd job-search
-./setup.sh                    # add --dev for ruff and the test extras
-.venv/bin/jobsearch serve     # then open http://127.0.0.1:8765/
-```
-
-`setup.sh` is safe to re-run, and does the rest:
-- **Your records:** clones `job-search-data` from the same place as the code (`<you>/job-search-data`) into
-  `data/`. If that repository is empty, it fills it from `examples/data-template` and pushes, after asking.
-  If it doesn't exist yet, it tells you how to create it (keep it **private**). To use a different
-  repository: `./setup.sh --data-url <url>`.
-- **The app:** creates `.venv` and installs it, or rebuilds `.venv` if it's broken (for example after you
-  move or rename the folder).
-- **Optional tools:** warns if LibreOffice, Chrome or Claude Code is missing.
-
-If something stops working after a `git pull`, run `./setup.sh` again. (Use a plain `git clone`, not
-`--recurse-submodules`: in a fork, that tries to fetch the upstream author's records and fails.)
 
 ## Try it in your browser
 
@@ -155,7 +162,7 @@ Personal settings live in your data repository, plus a few places outside it:
 ### Start the web app
 
 ```sh
-.venv/bin/jobsearch serve     # from your job-search folder
+./run.sh                      # or: .venv/bin/jobsearch serve
 ```
 Then open http://127.0.0.1:8765/ (local only; stop with Ctrl-C).
 

@@ -129,5 +129,5 @@ else warn "Chrome/Chromium not found - needed to save advert pages as PDF"; fi
 if command -v claude >/dev/null; then echo "    Claude Code: found"
 else warn "Claude Code not found - needed for 'Draft with Claude' (optional)"; fi
 
-step "Done. Start the app with:"
-echo "    .venv/bin/jobsearch serve     # then open http://127.0.0.1:8765/"
+step "Setup done."
+echo "    Start the app with ./run.sh (or .venv/bin/jobsearch serve, then open http://127.0.0.1:8765/)"
