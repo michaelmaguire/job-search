@@ -47,6 +47,27 @@ What it offers:
 
 This code repository holds no records: yours live in a separate, private repository.
 
+## Quick start
+
+```sh
+git clone git@github.com:<you>/job-search.git     # your fork
+cd job-search
+./setup.sh                    # add --dev for ruff and the test extras
+.venv/bin/jobsearch serve     # then open http://127.0.0.1:8765/
+```
+
+`setup.sh` is safe to re-run, and does the rest:
+- **Your records:** clones `job-search-data` from the same place as the code (`<you>/job-search-data`) into
+  `data/`. If that repository is empty, it fills it from `examples/data-template` and pushes, after asking.
+  If it doesn't exist yet, it tells you how to create it (keep it **private**). To use a different
+  repository: `./setup.sh --data-url <url>`.
+- **The app:** creates `.venv` and installs it, or rebuilds `.venv` if it's broken (for example after you
+  move or rename the folder).
+- **Optional tools:** warns if LibreOffice, Chrome or Claude Code is missing.
+
+If something stops working after a `git pull`, run `./setup.sh` again. (Use a plain `git clone`, not
+`--recurse-submodules`: in a fork, that tries to fetch the upstream author's records and fails.)
+
 ## Try it in your browser
 
 Open **https://michaelmaguire.github.io/job-search/web/#/** (or `https://<you>.github.io/job-search/web/#/` for your
@@ -92,44 +113,30 @@ The local app works directly on your clone of your records, and adds what a brow
   `/cover-letter`, `/log-effort`.
 
 The local app opens at http://127.0.0.1:8765/ and is reachable from your own computer only. Its records live in
-`data/`, a git submodule pointing at your own private repository; [Setup](#setup) creates that repository.
+`data/`, a clone of your own private records repository; [Setup](#setup) sets it up.
 
 ### Setup
 
-The `data/` submodule's URL is relative (`../job-search-data.git`): it resolves to a `job-search-data`
-repository next to whichever `job-search` you cloned. So: fork the code, create your own private
-`job-search-data` beside your fork from the starter template, and the submodule finds it.
+Your records live in `data/`, a clone of a private `job-search-data` repository next to your fork. (It's
+registered as a git submodule with a relative URL, `../job-search-data.git`, so each fork finds its own.)
 
 1. **Fork** this repository on GitHub, and create an **empty private** repository for your records
-   named `<you>/job-search-data`. Keep it private: it will hold your CV, letters, salary
-   expectations and the RAV/URC effort log.
-2. **Clone your fork without the submodule** (your data repository is still empty):
+   named `<you>/job-search-data` (`gh repo create job-search-data --private`). Keep it private: it will hold
+   your CV, letters, salary expectations and the RAV/URC effort log.
+2. **Clone your fork and run `setup.sh`** (needs Python 3.10+):
    ```sh
    git clone git@github.com:<you>/job-search.git
    cd job-search
+   ./setup.sh
    ```
-3. **Fill your data repository from the starter template** and push it:
-   ```sh
-   cp -r examples/data-template /tmp/job-search-data && cd /tmp/job-search-data
-   git init -b main && git add -A && git commit -m "Start from the job-search template"
-   git remote add origin git@github.com:<you>/job-search-data.git && git push -u origin main
-   cd -
-   ```
-4. **Check out your data repository** as the submodule and record its commit in your fork:
-   ```sh
-   git submodule update --init --remote data
-   git add data && git commit -m "Use my own data repository" && git push
-   ```
-   (Named it something else? `git submodule set-url data <its url>` first, and commit `.gitmodules` too.)
-5. **Install** (Python 3.10+). Rendering letters and PDF reports also needs LibreOffice (`soffice`) on the PATH;
-   saving advert pages as PDF needs Google Chrome or Chromium.
-   ```sh
-   python3 -m venv .venv && .venv/bin/pip install -e .
-   ```
-6. **Start the web app** (see [below](#start-the-web-app)).
+   It fills your empty records repository from the starter template (asking first), then installs the app.
+   Named the records repository something else? Use `./setup.sh --data-url <its url>`, and commit the changed
+   `.gitmodules` in your fork.
+3. **Optional tools:** rendering letters and PDF reports needs LibreOffice (`soffice`) on the PATH; saving
+   advert pages as PDF needs Google Chrome or Chromium.
+4. **Start the web app** (see [below](#start-the-web-app)).
 
-Once your fork points at your own data repository, setting up another computer is just
-`git clone --recurse-submodules git@github.com:<you>/job-search.git` followed by step 5.
+On another computer, the same clone and `./setup.sh` picks up your existing records.
 
 #### Make it yours
 
@@ -148,7 +155,7 @@ Personal settings live in your data repository, plus a few places outside it:
 ### Start the web app
 
 ```sh
-cd ~/code/job-search && .venv/bin/jobsearch serve
+.venv/bin/jobsearch serve     # from your job-search folder
 ```
 Then open http://127.0.0.1:8765/ (local only; stop with Ctrl-C).
 
