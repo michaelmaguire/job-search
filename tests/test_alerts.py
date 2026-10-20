@@ -123,6 +123,15 @@ class LinkedInAlerts(unittest.TestCase):
                         "linkedin", "advert text")
         self.assertEqual([j["company"] for j in fetch.run()[1]], ["Example Exchange"])
 
+    def test_progress_is_reported_per_source(self):
+        events = []
+        with self.assertLogs("jobsearch.fetch", "INFO") as logs:
+            fetch.run(dry_run=True, progress=events.append)
+        self.assertEqual([(e["status"], e["label"]) for e in events],
+                         [("checking", "LinkedIn job alerts (Gmail)"), ("done", "LinkedIn job alerts (Gmail)")])
+        self.assertEqual((events[1]["listed"], events[1]["new"]), (3, 2))
+        self.assertIn("[1/1] checking LinkedIn job alerts (Gmail)", "\n".join(logs.output))
+
     def test_gmail_not_connected_is_this_sources_error_only(self):
         def not_logged_in(*a, **k):
             raise SystemExit("not logged in to Gmail - run: jobsearch gmail login")

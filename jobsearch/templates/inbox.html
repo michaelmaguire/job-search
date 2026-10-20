@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Inbox · Job search{% endblock %}
-{% block head %}{% if fetcher.running %}<meta name="auto-refresh" content="3">{% endif %}{% endblock %}
 {% block body %}
 <form method="post" action="{{ url_for('start_fetch') }}" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <button class="primary" {% if fetcher.running %}disabled{% endif %}>Fetch new adverts</button>
   <span class="muted small">
-    {% if fetcher.running %}Fetching since {{ fetcher.started.strftime("%H:%M:%S") }}… (page refreshes until done)
+    {% if fetcher.running %}Fetching since {{ fetcher.started.strftime("%H:%M:%S") }}… (progress at the bottom right; the list updates when it's done)
     {% else %}
       {% set last = fetcher.last_fetch() %}
       Last fetch: {{ last.strftime("%Y-%m-%d %H:%M") if last else "never" }}{% if fetcher.result %} · {{ fetcher.result }}{% endif %}

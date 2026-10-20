@@ -6,7 +6,15 @@ from pathlib import Path
 from . import efforts, jobs
 
 
+def _log_progress():
+    """Fetch progress (which site is being checked) to stderr - the digest still goes to stdout."""
+    import logging
+    logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
+    logging.getLogger("jobsearch").setLevel(logging.INFO)
+
+
 def cmd_fetch(a):
+    _log_progress()
     from .fetch import run
     digest, _, errors = run(dry_run=a.dry_run, commit=a.commit)
     print(digest)
@@ -138,6 +146,7 @@ def check_gmail(days, limit, ask):
 
 
 def cmd_serve(a):
+    _log_progress()
     from .web import create_app
     print(f"job search: http://127.0.0.1:{a.port}/")
     create_app().run(host="127.0.0.1", port=a.port, debug=False)

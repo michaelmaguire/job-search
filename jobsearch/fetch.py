@@ -7,6 +7,7 @@ not fetched and adverts from blocked companies are not saved (search/blocklist.y
 """
 import datetime as dt
 import html
+import logging
 import re
 import subprocess
 import xml.etree.ElementTree as ET
@@ -31,6 +32,7 @@ from .jobs import (
 )
 from .paths import DATA, SEARCH
 
+log = logging.getLogger("jobsearch.fetch")
 UA = {"User-Agent": "Mozilla/5.0 (personal job search script)"}
 
 
@@ -353,7 +355,18 @@ def same_url(url):
     return re.sub(r"^https?://(www\.)?", "", u).replace("linkedin.com/comm/jobs/", "linkedin.com/jobs/")
 
 
-def run(dry_run=False, commit=False):
+def board_label(source, board, names):
+    """What a board is called in progress messages: 'Elastic (greenhouse:elastic)', 'swissdevjobs.ch'."""
+    if source in JOB_SITES:
+        return JOB_SITES[source]["name"]
+    name = names.get(f"{source}:{board}")
+    return f"{name} ({source}:{board})" if name else f"{source}:{board}"
+
+
+def run(dry_run=False, commit=False, progress=None):
+    """Poll every source. `progress(event)` (optional) hears about each board as it goes: a dict with
+    step, total, label and status 'checking' | 'advert' (title) | 'done' (listed, new) | 'error' (error).
+    The same goes to the 'jobsearch.fetch' log."""
     cfg = load_config()
     seen_file = SEARCH / "seen.txt"
     seen = set(seen_file.read_text().split()) if seen_file.exists() else set()
@@ -363,9 +376,31 @@ def run(dry_run=False, commit=False):
     saved = {same_url(j.get("url")) for j in all_jobs() if j.get("url")}
 
     names = company_names(cfg)
-    for source, board in boards(cfg, blocked):
+    todo = list(boards(cfg, blocked))
+
+    def tell(**event):
+        if event["status"] == "checking":
+            log.info("[%d/%d] checking %s", event["step"], event["total"], event["label"])
+        elif event["status"] == "advert":
+            log.info("    reading advert: %s", event["title"])
+        elif event["status"] == "done":
+            log.info("    %s: %d adverts listed, %d new", event["label"], event["listed"], event["new"])
+        else:
+            log.warning("    %s failed: %s", event["label"], event["error"])
+        if progress:
+            try:
+                progress(event)
+            except Exception:  # a broken progress display must not stop the fetch
+                pass
+
+    log.info("fetch started: %d sources", len(todo))
+    for step, (source, board) in enumerate(todo, 1):
+        label, listed, before = board_label(source, board, names), 0, len(new)
+        where = {"step": step, "total": len(todo), "label": label}
+        tell(status="checking", **where)
         try:
             for job in FETCHERS[source](board):
+                listed += 1
                 if source in ("workday", "successfactors"):  # these only know a host; use the companies.yaml name
                     job["company"] = names.get(f"{source}:{board}", job["company"])
                 if job["url"] in undated and job.get("posted"):
@@ -374,6 +409,7 @@ def run(dry_run=False, commit=False):
                         or blocked.company(job["company"]):
                     continue
                 if job.get("text") is None and job.get("ref") and source in DETAILS:
+                    tell(status="advert", title=job["title"], **where)
                     job.update({k: v for k, v in DETAILS[source](job["ref"]).items() if v})
                 if not (job.get("extra") or {}).get("salary") and job.get("text"):
                     if found := extract_salary(job["text"]):
@@ -389,8 +425,10 @@ def run(dry_run=False, commit=False):
                     job["company"], job["title"], job["location"], job["url"], f"{source}:{board}",
                     job["text"] or "", s, {"posted": job.get("posted"), **(job.get("extra") or {})})
                 new.append({**job, "score": s, "id": job_id})
+            tell(status="done", listed=listed, new=len(new) - before, **where)
         except Exception as e:  # one broken board shouldn't stop the run
             errors.append(f"{source}:{board}: {e}")
+            tell(status="error", error=str(e), **where)
 
     new.sort(key=lambda r: -r["score"])
     lines = [f"# New matches {today()}", "", f"{len(new)} new matching adverts.", "",
@@ -400,6 +438,7 @@ def run(dry_run=False, commit=False):
         lines += ["", "## Source errors", ""] + [f"- {e}" for e in errors]
     digest = "\n".join(lines) + "\n"
 
+    log.info("fetch finished: %d new adverts, %d source errors", len(new), len(errors))
     if not dry_run:
         seen_file.write_text("\n".join(sorted(seen)) + "\n")
         (SEARCH / "latest-digest.md").write_text(digest, encoding="utf-8")

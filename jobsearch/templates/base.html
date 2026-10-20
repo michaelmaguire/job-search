@@ -52,6 +52,14 @@
   button.busy::before { content:""; display:inline-block; width:.8em; height:.8em; margin-right:.4em; vertical-align:-.1em;
                         border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  #fetch-panel { position:fixed; right:.8rem; bottom:.8rem; z-index:9; width:min(26rem, calc(100vw - 1.6rem));
+                 background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.2);
+                 padding:.6rem .8rem; font-size:.85rem; }
+  #fetch-panel .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin:.35rem 0; }
+  #fetch-panel .bar > div { height:100%; width:0; background:var(--accent); transition:width .3s; }
+  #fetch-panel ol { list-style:none; margin:.3rem 0 0; padding:0; max-height:9rem; overflow:auto; }
+  #fetch-panel li { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #fetch-panel .now { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   @keyframes toast-out { to { opacity:0; visibility:hidden; } }
 </style>
 </head>
@@ -87,6 +95,48 @@
     onclick="this.remove()" title="click to dismiss">{{ m }}</div>{% endfor %}</div>
   {% block body %}{% endblock %}
 </main>
+{% if fetcher and fetcher.running and not browser %}
+<div id="fetch-panel" role="status" aria-live="polite">
+  <div style="display:flex;justify-content:space-between;gap:.5rem"><b>Fetching new adverts</b>
+    <span class="muted" id="fp-count">starting…</span></div>
+  <div class="bar"><div id="fp-bar"></div></div>
+  <div class="now" id="fp-now">Getting the list of sources…</div>
+  <ol id="fp-log" class="muted"></ol>
+</div>
+<script>
+  // Progress of the running fetch, from /fetch/status. On the Inbox the list reloads when it's done.
+  (function () {
+    var panel = document.getElementById("fetch-panel"), seen = 0;
+    function text(id, value) { document.getElementById(id).textContent = value; }
+    function poll() {
+      fetch("{{ url_for('fetch_status') }}", {cache: "no-store"}).then(function (r) { return r.json(); }).then(function (s) {
+        if (s.total) {
+          text("fp-count", s.step + " of " + s.total + " · " + s.new + " new" + (s.errors ? " · " + s.errors + " failed" : ""));
+          document.getElementById("fp-bar").style.width = Math.round(100 * (s.step - (s.running ? 1 : 0)) / s.total) + "%";
+        }
+        if (s.current) text("fp-now", "Checking " + s.current + (s.detail ? " - reading: " + s.detail : "…"));
+        var list = document.getElementById("fp-log");
+        s.log.filter(function (e) { return e.n > seen; }).forEach(function (e) {  // finished since the last poll
+          var li = document.createElement("li");
+          li.textContent = e.status === "error" ? "✗ " + e.label + " - " + e.error
+                                                : "✓ " + e.label + " - " + e.listed + " listed, " + e.new + " new";
+          if (e.status === "error") li.className = "err";
+          if (e.new) li.style.color = "var(--ok)";
+          list.insertBefore(li, list.firstChild);
+        });
+        if (s.log.length) seen = s.log[s.log.length - 1].n;
+        if (s.running) return setTimeout(poll, 1000);
+        document.getElementById("fp-bar").style.width = "100%";
+        text("fp-now", "Done: " + s.result);
+        if (location.pathname === "{{ url_for('inbox') }}") return setTimeout(function () { location.reload(); }, 800);
+        var a = document.createElement("a"); a.href = "{{ url_for('inbox') }}"; a.textContent = " - see the Inbox";
+        document.getElementById("fp-now").appendChild(a);
+      }).catch(function () { setTimeout(poll, 3000); });
+    }
+    poll();
+  })();
+</script>
+{% endif %}
 <script>
   // Buttons are plain forms, so every click reloads the page. Remember the scroll position when
   // leaving and restore it when the same page comes back within a few seconds (a button click or the

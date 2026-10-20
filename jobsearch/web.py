@@ -46,6 +46,28 @@ class Fetcher:
         self.lock = threading.Lock()
         self.started = self.finished = None
         self.result = ""  # summary of the last run
+        self._reset()
+
+    def _reset(self):
+        self.step = self.total = self.new = self.errors = 0
+        self.current = ""   # board being checked now
+        self.detail = ""    # advert being read on it, if any
+        self.log = []       # finished boards: {label, status, listed, new, error}
+
+    def progress(self, event):
+        """fetch.run's progress callback."""
+        self.step, self.total, self.current = event["step"], event["total"], event["label"]
+        self.detail = event.get("title", "") if event["status"] == "advert" else ""
+        if event["status"] in ("done", "error"):
+            self.new += event.get("new", 0)
+            self.errors += event["status"] == "error"
+            self.log.append({"n": len(self.log) + 1, **{k: event.get(k) for k in ("label", "status", "listed", "new", "error")}})
+
+    def status(self):
+        """Where the fetch is, for the progress panel (JSON)."""
+        return {"running": self.running, "started": self.started.strftime("%H:%M:%S") if self.started else "",
+                "step": self.step, "total": self.total, "current": self.current, "detail": self.detail,
+                "new": self.new, "errors": self.errors, "log": self.log[-40:], "result": self.result}
 
     @property
     def running(self):
@@ -55,13 +77,14 @@ class Fetcher:
         if not self.lock.acquire(blocking=False):
             return False
         self.started = dt.datetime.now()
+        self._reset()
         threading.Thread(target=self._run, daemon=True).start()
         return True
 
     def _run(self):
         from . import fetch
         try:
-            _, new, errors = fetch.run(commit=False)
+            _, new, errors = fetch.run(commit=False, progress=self.progress)
             self.result = f"{len(new)} new adverts" + (f", {len(errors)} source errors (see latest-digest.md)" if errors else "")
         except Exception as e:
             self.result = f"failed: {e}"
@@ -77,9 +100,24 @@ class Fetcher:
         return dt.datetime.fromtimestamp(digest.stat().st_mtime) if digest.exists() else None
 
 
+def session_key():
+    """The key that signs the session cookie, kept in ~/.config/jobsearch/web-secret (mode 600) so a
+    restarted server still accepts pages opened before the restart. A fresh one if it can't be saved."""
+    from .gmail import CONFIG, _write_private
+    path = CONFIG / "web-secret"
+    try:
+        if path.exists() and (key := path.read_text().strip()):
+            return key
+        key = secrets.token_hex(32)
+        _write_private(path, key)
+        return key
+    except OSError:
+        return secrets.token_hex(32)
+
+
 def create_app():
     app = Flask(__name__)
-    app.secret_key = secrets.token_hex(16)
+    app.secret_key = session_key()
     fetcher = Fetcher()
     drafter = Drafter()
 
@@ -87,7 +125,10 @@ def create_app():
     def csrf():
         session.setdefault("csrf", secrets.token_hex(16))
         if request.method == "POST" and request.form.get("csrf") != session["csrf"]:
-            abort(400, "stale form - reload the page")
+            # a page opened before the session changed (e.g. cookies cleared): nothing was done - say so and go back
+            flash("error: that page was out of date, so nothing was done - it's reloaded now, please try again")
+            back = request.referrer or ""
+            return redirect(back if back.startswith(request.host_url) else url_for("inbox"))
 
     @app.context_processor
     def ctx():
@@ -97,7 +138,8 @@ def create_app():
             repo = {"ok": False, "changes": [], "branch": None, "ahead": 0, "error": str(e)}
         repo["message"] = datarepo.default_message(repo["changes"]) if repo["changes"] else ""
         return {"csrf": session.get("csrf"), "STATUSES": jobs.STATUSES, "data_dir": DATA, "repo": repo,
-                "browser": app.config.get("BROWSER", False)}  # True in the browser version (web/bridge.py)
+                "browser": app.config.get("BROWSER", False),  # True in the browser version (web/bridge.py)
+                "fetcher": fetcher}
 
     @app.route("/")
     def inbox():
@@ -137,6 +179,10 @@ def create_app():
         if not f["text"].strip():
             flash("error: no advert text yet - paste it under Advert text on this page before drafting a letter")
         return redirect(url_for("job", job_id=job_id))
+
+    @app.get("/fetch/status")
+    def fetch_status():
+        return fetcher.status()
 
     @app.post("/fetch")
     def start_fetch():
