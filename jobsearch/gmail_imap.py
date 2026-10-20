@@ -88,13 +88,42 @@ def _snippet(msg):
     return " ".join(text.split())[:200]
 
 
+def body_text(msg):
+    """Plain text of an email.message.EmailMessage: its text/plain part, else its HTML with the tags stripped."""
+    import html
+    for ctype in ("text/plain", "text/html"):
+        part = next((p for p in msg.walk() if p.get_content_type() == ctype and not p.is_attachment()), None)
+        if part is None:
+            continue
+        try:
+            text = part.get_content()
+        except Exception:
+            continue
+        if ctype == "text/html":
+            text = re.sub(r"(?is)<(script|style|head)\b.*?</\1>", " ", text)
+            text = re.sub(r"(?i)<br\s*/?>|</(p|div|tr|li|h\d)>", "\n", text)
+            text = html.unescape(re.sub(r"<[^>]+>", " ", text))
+        lines = [" ".join(line.split()) for line in text.replace("\r\n", "\n").splitlines()]
+        return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+    return ""
+
+
+def summary(msg, id_, full=False):
+    """The dict messages() returns for one parsed message; with full=True also message_id and body."""
+    out = {"id": id_, "date": _text(msg["Date"]), "from": _text(msg["From"]),
+           "subject": _text(msg["Subject"]), "snippet": _snippet(msg)}
+    if full:
+        out.update(message_id=(msg["Message-ID"] or "").strip() or id_, body=body_text(msg))
+    return out
+
+
 def status():
     conn, address = connect()
     conn.logout()
     return f"connected as {address} (IMAP)"
 
 
-def messages(query="", limit=20):
+def messages(query="", limit=20, full=False):
     """Newest messages matching a Gmail search query (same syntax as the web UI)."""
     conn, _ = connect()
     try:
@@ -106,8 +135,7 @@ def messages(query="", limit=20):
             data = conn.uid("FETCH", uid, "(BODY.PEEK[])")[1]
             raw = next((d[1] for d in data if isinstance(d, tuple)), b"")
             msg = email.message_from_bytes(raw, policy=email.policy.default)
-            out.append({"id": uid.decode(), "date": _text(msg["Date"]), "from": _text(msg["From"]),
-                        "subject": _text(msg["Subject"]), "snippet": _snippet(msg)})
+            out.append(summary(msg, uid.decode(), full))
         return out
     finally:
         conn.logout()

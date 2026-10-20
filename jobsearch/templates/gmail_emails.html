@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Check Gmail · Job search{% endblock %}
+{% block body %}
+<h2 style="margin-top:0">Replies to your applications in Gmail</h2>
+<form method="get" style="margin-bottom:.6rem">Last <input name="days" type="number" min="1" max="365" value="{{ days }}" style="width:5rem"> days <button>Check again</button>
+  <a href="{{ url_for('inbox') }}" style="margin-left:.6rem">Inbox</a> · <a href="{{ url_for('efforts_page') }}">Efforts</a></form>
+<p class="small muted">Emails from the last {{ days }} days that mention an open application's company or an application.
+  The job and kind are guesses from the wording: check them. Nothing is saved until you press Save.</p>
+
+{% if error %}
+<div class="card"><b>Can't check Gmail:</b> {{ error }}</div>
+{% elif not found %}
+<div class="card">No new emails about open applications. (Ones you saved or ignored aren't shown again.)</div>
+{% endif %}
+
+{% for c in found %}
+<div class="card">
+  <div><b>{{ c.subject or "(no subject)" }}</b></div>
+  <div class="small muted">{{ c.from }} · {{ c.date }} · looks like <b>{{ c.kind }}</b></div>
+  <p style="margin:.4rem 0">{{ c.snippet }}</p>
+  <details style="margin:.4rem 0"><summary class="small">Show the whole email</summary>
+    <pre style="white-space:pre-wrap;max-height:20rem;overflow:auto">{{ c.text }}</pre></details>
+  <form method="post" action="{{ url_for('paste_email') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+    <input type="hidden" name="message_id" value="{{ c.message_id }}"><input type="hidden" name="text" value="{{ c.text }}">
+    <div class="grid">
+      <label>What is it<select name="kind">{% for k, label in KINDS.items() %}<option value="{{ k }}"{% if k == c.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      {% set suggested = c.guesses[:3] | map(attribute=1) | list %}
+      {% set ids = suggested | map(attribute="id") | list %}
+      <label>Which application<select name="job_id" required>
+        {% if suggested %}<optgroup label="Suggested">
+          {% for j in suggested %}<option value="{{ j.id }}"{% if loop.first %} selected{% endif %}>{{ j.company }} - {{ j.title[:60] }} ({{ j.status }})</option>{% endfor %}
+        </optgroup>{% else %}<option value="">choose…</option>{% endif %}
+        <optgroup label="Other open applications">
+          {% for j in open_jobs if j.id not in ids %}<option value="{{ j.id }}">{{ j.company }} - {{ j.title[:60] }} ({{ j.status }})</option>{% endfor %}
+        </optgroup></select></label>
+      <label>Rejection reason (optional)<input name="reason" placeholder="default: the start of their message"></label>
+    </div>
+    <button class="primary" style="margin-top:.4rem">Save</button>
+  </form>
+  <form method="post" action="{{ url_for('gmail_ignore') }}" class="inline" style="margin-top:.3rem">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+    <input type="hidden" name="message_id" value="{{ c.message_id }}">
+    <button>Not about an application - ignore</button>
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

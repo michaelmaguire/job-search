@@ -92,6 +92,8 @@ def cmd_gmail(a):
     elif a.gmail_cmd == "list":
         for m in gmail.messages(a.query, a.max):
             print(f"{m['date'][:25]:25}  {m['from'][:35]:35}  {m['subject'][:70]}")
+    elif a.gmail_cmd == "check":
+        return check_gmail(a.days, a.max, a.confirm)
     elif a.gmail_cmd == "draft":
         e = gmail.email(a.job)
         body = open(a.body_file, encoding="utf-8").read() if a.body_file else e["body"]
@@ -101,6 +103,38 @@ def cmd_gmail(a):
             raise SystemExit(str(err))
         print(f"Gmail draft saved (not sent): {e['subject']!r} to {a.to}, attached: {', '.join(files) or 'nothing'}")
         print("review and send it from Gmail > Drafts")
+
+
+def check_gmail(days, limit, ask):
+    """List Gmail replies to open applications; with ask=True, confirm each one to save it."""
+    from . import correspondence
+    found = correspondence.gmail_candidates(days, limit)
+    if not found:
+        print(f"no new emails about open applications in the last {days} days")
+        return 0
+    keys = {"a": "acknowledgement", "r": "rejection", "o": "other"}
+    for n, c in enumerate(found, 1):
+        best = c["guesses"][0][1] if c["guesses"] else None
+        print(f"\n[{n}/{len(found)}] {c['date'][:25]}  {c['from']}\n    {c['subject']}")
+        print(f"    looks like: {c['kind']} - " + (f"{best['company']}, {best['title']} ({best['status']})" if best else "job unknown"))
+        if not ask:
+            continue
+        if not best:
+            print("    choose the job in the web app (Efforts > Check Gmail), or paste it there")
+            continue
+        answer = input("    save? [y]es / as [a]ck, [r]ejection, [o]ther / [i]gnore for good / [s]kip: ").strip().lower()[:1]
+        if answer == "i":
+            correspondence.ignore(c["message_id"])
+            print("    ignored")
+        elif answer in ("y", *keys):
+            summary, warnings = correspondence.save(best["id"], c["text"], keys.get(answer, c["kind"]),
+                                                    message_id=c["message_id"])
+            print("    " + summary)
+            for w in warnings:
+                print("    ERROR", w)
+    if not ask:
+        print("\nnothing saved - run with --confirm to go through them, or use Efforts > Check Gmail in the web app")
+    return 0
 
 
 def cmd_serve(a):
@@ -174,6 +208,10 @@ def main(argv=None):
     gl = g.add_parser("list", help="list recent messages")
     gl.add_argument("--query", default="", help="Gmail search, e.g. 'from:jobs.ch newer_than:7d'")
     gl.add_argument("--max", type=int, default=20)
+    gc = g.add_parser("check", help="find acknowledgements/rejections for open applications (saves only what you confirm)")
+    gc.add_argument("--days", type=int, default=30, help="how far back to look (default 30)")
+    gc.add_argument("--max", type=int, default=50, help="most messages to read (default 50)")
+    gc.add_argument("--confirm", action="store_true", help="go through them one by one and save the ones you confirm")
     gd = g.add_parser("draft", help="create a draft application email for a job (letter PDF + CV attached)")
     gd.add_argument("job")
     gd.add_argument("--to", required=True)

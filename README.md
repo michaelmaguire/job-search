@@ -112,6 +112,9 @@ The local app works directly on your clone of your records, and adds what a brow
   Ashby, SmartRecruiters, swissdevjobs); locally, Workday, SuccessFactors, Recruitee and Personio work too.
 - **Gmail drafts.** The application email is saved to your Gmail Drafts with the letter PDF and your CV attached,
   ready for you to send. (In the browser, "Write in Gmail" opens a new message and you attach the files yourself.)
+- **Replies found in Gmail.** "Check Gmail for replies" (Inbox and Efforts pages, or `jobsearch gmail check --confirm`)
+  finds acknowledgements and rejections for your open applications, shows a snippet of each with the job it
+  probably belongs to, and saves the ones you confirm. Saved or ignored emails aren't offered again.
 - **PDFs of advert pages,** saved automatically when you shortlist, draft or apply - proof of the advert for the RAV.
 - **Letters rendered by LibreOffice,** with the exact layout; the browser's are close but not identical. Also the
   German RAV report as a PDF (`jobsearch report --lang de --pdf`).

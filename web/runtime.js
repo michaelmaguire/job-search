@@ -9,7 +9,7 @@ const SETTINGS = "/settings";
 // What the browser loads of the jobsearch package (tests/test_web_bridge.py keeps this list complete).
 export const PY_FILES = ["__init__", "blocklist", "check", "conversations", "correspondence", "datarepo", "drafter",
   "efforts", "fetch", "gmail", "gmail_imap", "jobs", "paths", "render", "report", "snapshot", "sources", "web"].map((m) => `${m}.py`);
-export const TEMPLATES = ["_add_company", "base", "companies", "effort_edit", "efforts", "facts", "inbox", "job", "recruiter", "recruiters",
+export const TEMPLATES = ["_add_company", "base", "companies", "effort_edit", "efforts", "facts", "gmail_emails", "inbox", "job", "recruiter", "recruiters",
   "report", "sources"].map((t) => `templates/${t}.html`);
 export const FORMS = ["forms/716.007-i.pdf"];
 const WEB_FILES = ["bridge.py", "letterdoc.py", "templates/browser_data.html", "templates/browser_edit.html"];

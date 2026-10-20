@@ -70,14 +70,22 @@ def login():
     return service(interactive=True).users().getProfile(userId="me").execute()["emailAddress"]
 
 
-def messages(query="", limit=20):
-    """Recent messages matching a Gmail search query: id, date, from, subject, snippet."""
+def messages(query="", limit=20, full=False):
+    """Recent messages matching a Gmail search query: id, date, from, subject, snippet
+    (and with full=True: message_id and the plain-text body)."""
     if gmail_imap.configured():
-        return gmail_imap.messages(query, limit)
+        return gmail_imap.messages(query, limit, full)
     svc = service()
     ids = svc.users().messages().list(userId="me", q=query, maxResults=limit).execute().get("messages", [])
     out = []
     for m in ids:
+        if full:
+            import email
+            import email.policy
+            raw = svc.users().messages().get(userId="me", id=m["id"], format="raw").execute()["raw"]
+            msg = email.message_from_bytes(base64.urlsafe_b64decode(raw), policy=email.policy.default)
+            out.append(gmail_imap.summary(msg, m["id"], full=True))
+            continue
         msg = svc.users().messages().get(userId="me", id=m["id"], format="metadata",
                                          metadataHeaders=["From", "Subject", "Date"]).execute()
         h = {x["name"].lower(): x["value"] for x in msg["payload"].get("headers", [])}

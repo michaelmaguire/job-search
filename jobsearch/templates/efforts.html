@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Efforts · Job search{% endblock %}
 {% block body %}
+<p style="margin-top:0"><a class="btn primary" href="{{ url_for('gmail_emails') }}">Check Gmail for replies</a>
+  <span class="muted small">finds acknowledgements and rejections for your open applications; you confirm each one</span></p>
 <details class="card" id="paste-email">
   <summary><b>Paste an email about an application</b> <span class="muted small">- an acknowledgement ("we received your application"), a rejection, …</span></summary>
   <form method="post" action="{{ url_for('paste_email') }}" style="margin-top:.5rem">
@@ -13,6 +15,7 @@
       <label>Rejection reason (optional)<input name="reason" placeholder="default: the start of their message"></label>
     </div>
     <button class="primary" style="margin-top:.4rem">Save email</button>
+
     <span class="muted small">Saved word for word in the job's folder. An acknowledgement sets the job to <b>acknowledged</b>;
       a rejection sets it to <b>rejected</b> and logs the result (with the reason) for the monthly form.</span>
   </form>

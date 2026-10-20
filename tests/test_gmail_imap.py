@@ -100,6 +100,16 @@ class GmailIMAP(unittest.TestCase):
         self.assertEqual((m["from"], m["subject"], m["snippet"]),
                          ("Zürich Talent <talent@example.ch>", "Your application", "Thank you for applying."))
 
+    def test_full_messages_have_message_id_and_text_of_html_mail(self):
+        FakeIMAP.folders["[Gmail]/Alle Nachrichten"].append(
+            b"From: hr@acme.example\r\nSubject: Application\r\nMessage-ID: <m2@acme.example>\r\n"
+            b"Content-Type: text/html; charset=utf-8\r\n\r\n<html><style>p{}</style><p>We received<br>your application &amp; CV.</p></html>\r\n")
+        gmail_imap.login("me@gmail.com", "abcdabcdabcdabcd")
+        html, plain = gmail.messages("", 5, full=True)
+        self.assertEqual((html["message_id"], html["body"]), ("<m2@acme.example>", "We received\nyour application & CV."))
+        self.assertEqual(plain["body"], "Thank you for applying.")
+        self.assertEqual(plain["message_id"], plain["id"])  # no Message-ID header: falls back to the IMAP uid
+
     def test_bad_saved_password_shows_in_status(self):
         gmail_imap.login("me@gmail.com", "abcdabcdabcdabcd")
         gmail_imap.config_path().write_text("address: me@gmail.com\napp_password: stale\n")

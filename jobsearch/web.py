@@ -346,14 +346,41 @@ def create_app():
                 return redirect(back)
             job_id = guesses[0][1]["id"]
         try:
-            summary, warnings = correspondence.save(job_id, text, kind, request.form.get("reason", ""))
+            summary, warnings = correspondence.save(job_id, text, kind, request.form.get("reason", ""),
+                                                    request.form.get("message_id", ""))
         except (ValueError, SystemExit) as e:
             flash(f"error: {e}")
             return redirect(back)
         flash(summary)
         for w in warnings:
             flash(f"error: {w}")
+        if request.form.get("message_id"):  # from the Gmail list: back there for the next one
+            return redirect(back)
         return redirect(url_for("job", job_id=jobs.load(job_id)["id"]))
+
+    @app.get("/emails/gmail")
+    def gmail_emails():
+        days = request.args.get("days", 30, type=int)
+        found, error = [], ""
+        ok, why = gmail.status()
+        if not ok:
+            error = why
+        else:
+            try:
+                found = correspondence.gmail_candidates(days)
+            except SystemExit as e:
+                error = str(e)
+            except Exception as e:
+                error = f"couldn't read Gmail ({str(e)[:200]})"
+        open_jobs = [j for j in jobs.all_jobs() if j.get("status") in correspondence.OPEN_STATUSES]
+        return render_template("gmail_emails.html", found=found, error=error, days=days,
+                               open_jobs=open_jobs, KINDS=correspondence.KINDS)
+
+    @app.post("/emails/gmail/ignore")
+    def gmail_ignore():
+        correspondence.ignore(request.form.get("message_id", ""))
+        flash("ignored - it won't be offered again")
+        return redirect(request.form.get("next") or url_for("gmail_emails"))
 
     @app.post("/job/<job_id>/emails/<name>")
     def change_email(job_id, name):

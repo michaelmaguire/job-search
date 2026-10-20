@@ -7,7 +7,7 @@ tab can't do is swapped out here:
   - git: status comes from the worker (isomorphic-git), which also handles commit, import and export;
   - fetching runs during the request (no threads) through the browser's network - boards that allow it;
   - letters are rendered with letterdoc.py instead of LibreOffice;
-  - Gmail drafts, Claude drafting and Chrome snapshots need the local app (the pages say so).
+  - Gmail (drafts, checking for replies), Claude drafting and Chrome snapshots need the local app (the pages say so).
 """
 import datetime as dt
 import io
@@ -52,7 +52,8 @@ def _fetch_now(self):
 SWAPS = [
     (datarepo, "status", lambda: {**REPO, "changes": list(REPO["changes"])}),
     (datarepo, "commit_and_push", _no_push),
-    (gmail, "status", lambda max_age=60: (False, "Gmail drafts need the local app - use Write in Gmail and attach the files yourself")),
+    (gmail, "status", lambda max_age=60: (False, "Gmail (drafts, checking for replies) needs the local app - for a draft, use Write in Gmail and attach "
+                                          "the files yourself; paste replies on the Efforts page")),
     (render, "CONVERT", letterdoc.write),
     (web.Fetcher, "start", _fetch_now),
 ]

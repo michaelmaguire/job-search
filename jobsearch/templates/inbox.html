@@ -12,6 +12,8 @@
       Last fetch: {{ last.strftime("%Y-%m-%d %H:%M") if last else "never" }}{% if fetcher.result %} · {{ fetcher.result }}{% endif %}
     {% endif %}
   </span>
+  <a class="btn primary" href="{{ url_for('gmail_emails') }}" style="margin-left:auto"
+     title="Find acknowledgements and rejections for your open applications; you confirm each one">Check Gmail for replies</a>
 </form>
 <details id="add" style="margin-bottom:.8rem">
   <summary><b>Add an advert</b> <span class="muted small">- found on LinkedIn, jobs.ch, a company site or in an email</span></summary>
