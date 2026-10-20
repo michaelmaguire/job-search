@@ -112,6 +112,10 @@ The local app works directly on your clone of your records, and adds what a brow
   Ashby, SmartRecruiters, swissdevjobs); locally, Workday, SuccessFactors, Recruitee and Personio work too.
 - **Gmail drafts.** The application email is saved to your Gmail Drafts with the letter PDF and your CV attached,
   ready for you to send. (In the browser, "Write in Gmail" opens a new message and you attach the files yourself.)
+- **Job-alert emails as a source.** Fetch reads LinkedIn's job-alert emails from your Gmail (LinkedIn has no API,
+  and nothing here visits LinkedIn) and adds their jobs to the Inbox as summaries - paste the full advert before
+  writing a letter. Switch it on or off on the Sources page; `alert_score_bonus` in `config.yaml` lifts these
+  title-only jobs over `min_score`. Other alert emails can be added as parsers in `jobsearch/alerts.py`.
 - **Replies found in Gmail.** "Check Gmail for replies" (Inbox and Efforts pages, or `jobsearch gmail check --confirm`)
   finds acknowledgements and rejections for your open applications, shows a snippet of each with the job it
   probably belongs to, and saves the ones you confirm. Saved or ignored emails aren't offered again.

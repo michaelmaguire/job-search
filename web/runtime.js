@@ -7,7 +7,7 @@ import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodi
 export const DIR = "/data";
 const SETTINGS = "/settings";
 // What the browser loads of the jobsearch package (tests/test_web_bridge.py keeps this list complete).
-export const PY_FILES = ["__init__", "blocklist", "check", "conversations", "correspondence", "datarepo", "drafter",
+export const PY_FILES = ["__init__", "alerts", "blocklist", "check", "conversations", "correspondence", "datarepo", "drafter",
   "efforts", "fetch", "gmail", "gmail_imap", "jobs", "paths", "render", "report", "snapshot", "sources", "web"].map((m) => `${m}.py`);
 export const TEMPLATES = ["_add_company", "base", "companies", "effort_edit", "efforts", "facts", "gmail_emails", "inbox", "job", "recruiter", "recruiters",
   "report", "sources"].map((t) => `templates/${t}.html`);

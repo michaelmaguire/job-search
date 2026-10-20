@@ -32,7 +32,7 @@ class FetchButton(unittest.TestCase):
         with mock.patch.object(fetch, "run", fake_run):
             self.client.post("/fetch", data={"csrf": self.csrf})
             page = self.client.get("/").get_data(as_text=True)
-            self.assertIn('http-equiv="refresh"', page)
+            self.assertIn('name="auto-refresh"', page)
             self.assertIn("Fetching since", page)
             second = self.client.post("/fetch", data={"csrf": self.csrf}, follow_redirects=True)
             self.assertIn("already running", second.get_data(as_text=True))
@@ -42,7 +42,7 @@ class FetchButton(unittest.TestCase):
                     t.join(5)
         self.assertEqual(calls, [{"commit": False}])
         page = self.client.get("/").get_data(as_text=True)
-        self.assertNotIn('http-equiv="refresh"', page)
+        self.assertNotIn('name="auto-refresh"', page)
         self.assertIn("1 new adverts", page)
 
 

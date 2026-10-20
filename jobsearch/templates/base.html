@@ -48,6 +48,10 @@
   .toasts { position:fixed; top:.8rem; right:.8rem; z-index:10; display:flex; flex-direction:column; gap:.4rem; max-width:min(32rem, calc(100vw - 1.6rem)); }
   .toast { margin:0; box-shadow:0 2px 10px rgba(0,0,0,.18); cursor:pointer; animation:toast-out .4s ease 6s forwards; }
   .toast.err { border-left-color:var(--err); animation:none; }
+  button.busy { opacity:.75; cursor:progress; }
+  button.busy::before { content:""; display:inline-block; width:.8em; height:.8em; margin-right:.4em; vertical-align:-.1em;
+                        border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
   @keyframes toast-out { to { opacity:0; visibility:hidden; } }
 </style>
 </head>
@@ -72,8 +76,8 @@
       {% else %}up to date{% endif %}</span>
     {% if repo.ok and (repo.changes or repo.ahead or repo.pointer_stale) %}
     {% if repo.changes %}<input name="message" value="{{ repo.message }}" size="28" title="commit message - edit if you like" aria-label="commit message" class="small">{% endif %}
-    {% if browser %}<button title="git add -A and commit, in this browser - export a bundle on the Data page to take it elsewhere">Commit data</button>
-    {% else %}<button title="git add -A, commit and push data/ ({{ data_dir }}), then record its new commit in the code repo (that pointer only)">{{ "Commit & push data" if repo.changes else "Push data" if repo.ahead else "Update code repo" }}</button>{% endif %}
+    {% if browser %}<button data-busy="Committing…" title="git add -A and commit, in this browser - export a bundle on the Data page to take it elsewhere">Commit data</button>
+    {% else %}<button data-busy="{{ 'Committing & pushing…' if repo.changes else 'Pushing…' if repo.ahead else 'Updating…' }}" title="git add -A, commit and push data/ ({{ data_dir }}), then record its new commit in the code repo (that pointer only)">{{ "Commit & push data" if repo.changes else "Push data" if repo.ahead else "Update code repo" }}</button>{% endif %}
     {% endif %}
   </form>
   {% if browser %}<a href="/browser/data">Data</a><a href="/browser/lock" title="forget the key and lock this tab">Lock</a>{% endif %}
@@ -100,6 +104,43 @@
         sessionStorage.setItem(key, JSON.stringify({y: window.scrollY, t: Date.now()}));
       });
     } catch (e) { /* storage unavailable: fall back to normal browser behaviour */ }
+  })();
+
+  // Pressing a button: show it's working (some, like Commit & push, take a while) and stop double clicks.
+  // Pages that refresh themselves (a fetch or a draft running) hold off once a button is pressed or
+  // while you're typing - a refresh then would cancel the request or lose what you typed.
+  (function () {
+    var busy = false;
+    document.addEventListener("submit", function (e) {
+      var form = e.target, btn = e.submitter;
+      if (e.defaultPrevented || (form.getAttribute("method") || "get").toLowerCase() !== "post") return;
+      busy = true;
+      setTimeout(function () {  // after the browser has read the form, so the pressed button's value is still sent
+        form.querySelectorAll("button:not(:disabled)").forEach(function (b) { b.disabled = true; b.dataset.held = ""; });
+        if (btn && btn.tagName === "BUTTON") {
+          btn.dataset.label = btn.textContent;
+          btn.textContent = btn.dataset.busy || "Working…";
+          btn.classList.add("busy");
+        }
+      }, 0);
+    });
+    window.addEventListener("pageshow", function (e) {  // back button: the page comes back from cache as it was left
+      if (!e.persisted) return;
+      busy = false;
+      document.querySelectorAll("button.busy").forEach(function (b) { b.textContent = b.dataset.label; b.classList.remove("busy"); });
+      document.querySelectorAll("button[data-held]").forEach(function (b) { b.disabled = false; delete b.dataset.held; });
+    });
+    var auto = document.querySelector("meta[name=auto-refresh]");
+    if (!auto) return;
+    var wait = 1000 * (parseFloat(auto.content) || 3);
+    (function tick() {
+      setTimeout(function () {
+        var f = document.activeElement;
+        if (busy) return;
+        if (f && (f.tagName === "TEXTAREA" || (f.tagName === "INPUT" && f.type !== "hidden"))) return tick();
+        location.reload();
+      }, wait);
+    })();
   })();
 </script>
 </body>

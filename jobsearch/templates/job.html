@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ j.company }} · Job search{% endblock %}
-{% block head %}{% if drafter.running and drafter.job == j.id %}<meta http-equiv="refresh" content="4">{% endif %}{% endblock %}
+{% block head %}{% if drafter.running and drafter.job == j.id %}<meta name="auto-refresh" content="4">{% endif %}{% endblock %}
 {% block body %}
 <div class="card">
   <h2 style="margin:0;font-size:1.7rem">{{ j.company }}</h2>

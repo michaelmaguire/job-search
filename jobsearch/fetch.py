@@ -14,9 +14,11 @@ import xml.etree.ElementTree as ET
 import requests
 import yaml
 
+from . import alerts
 from .blocklist import Checker
 from .jobs import (
     JOBS,
+    all_jobs,
     SWISS_RE,
     below_salary,
     create_job,
@@ -267,7 +269,7 @@ def swissdevjobs(_):
 
 FETCHERS = {"greenhouse": greenhouse, "lever": lever, "ashby": ashby, "smartrecruiters": smartrecruiters,
             "recruitee": recruitee, "personio": personio, "workday": workday, "successfactors": successfactors,
-            "swissdevjobs": swissdevjobs}
+            "swissdevjobs": swissdevjobs, **{k: alerts.fetcher(k) for k in alerts.ALERTS}}
 
 # Boards whose listings come without the advert text: fetched per posting, only for adverts that pass
 # the location, title and blocklist checks. Returns {"text": ..., optionally "location", "posted"}.
@@ -281,6 +283,8 @@ JOB_SITES = {
     "swissdevjobs": {"name": "swissdevjobs.ch", "url": "https://swissdevjobs.ch",
                      "about": "Developer adverts from hundreds of Swiss companies. Summaries only - paste the full "
                               "advert before writing a letter. The only source that states salary ranges."},
+    # job-alert emails read from Gmail (alerts.py), e.g. LinkedIn's
+    **{k: {f: a[f] for f in ("name", "url", "about")} for k, a in alerts.ALERTS.items()},
 }
 
 
@@ -342,6 +346,13 @@ def set_posted(path, posted):
     path.write_text(join_front_matter(meta, body), encoding="utf-8")
 
 
+def same_url(url):
+    """A link without tracking parameters, for spotting an advert you already saved some other way
+    (e.g. a LinkedIn job added by hand from a tracking link, later in an alert email)."""
+    u = str(url or "").split("#")[0].split("?")[0].rstrip("/").lower()
+    return re.sub(r"^https?://(www\.)?", "", u).replace("linkedin.com/comm/jobs/", "linkedin.com/jobs/")
+
+
 def run(dry_run=False, commit=False):
     cfg = load_config()
     seen_file = SEARCH / "seen.txt"
@@ -349,6 +360,7 @@ def run(dry_run=False, commit=False):
     new, errors = [], []
     blocked = Checker()
     undated = {} if dry_run else undated_jobs()
+    saved = {same_url(j.get("url")) for j in all_jobs() if j.get("url")}
 
     names = company_names(cfg)
     for source, board in boards(cfg, blocked):
@@ -358,7 +370,8 @@ def run(dry_run=False, commit=False):
                     job["company"] = names.get(f"{source}:{board}", job["company"])
                 if job["url"] in undated and job.get("posted"):
                     set_posted(undated.pop(job["url"]), job["posted"])
-                if job["url"] in seen or not matches(cfg, job) or blocked.company(job["company"]):
+                if job["url"] in seen or same_url(job["url"]) in saved or not matches(cfg, job) \
+                        or blocked.company(job["company"]):
                     continue
                 if job.get("text") is None and job.get("ref") and source in DETAILS:
                     job.update({k: v for k, v in DETAILS[source](job["ref"]).items() if v})
@@ -368,7 +381,7 @@ def run(dry_run=False, commit=False):
                 if below_salary({**(job.get("extra") or {}), "location": job.get("location")}, cfg.get("min_salary") or 0) \
                         or outside_commute(job, cfg.get("commute_area") or []):
                     continue
-                s = score(cfg, job)
+                s = score(cfg, job) + alerts.score_bonus(cfg, source)
                 if s < cfg.get("min_score", 0):
                     continue
                 seen.add(job["url"])

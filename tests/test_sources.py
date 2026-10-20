@@ -91,7 +91,7 @@ class Sources(unittest.TestCase):
         page = client.get("/sources").get_data(as_text=True)
         self.assertIn("greenhouse:acme", page)
         self.assertIn("Finance", page)
-        self.assertIn("Job sites (1)", page)
+        self.assertIn("Job sites (2)", page)
         self.assertIn("Company boards - polled automatically", page)
         self.assertIn("Yes, remove IT&#39;IS Foundation", page)  # two-step remove, no pop-up
 
